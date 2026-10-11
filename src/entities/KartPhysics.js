@@ -241,10 +241,16 @@ function updateLap(kart, near) {
   const s = kart.state;
   const p = s.progress01;
   const last = kart._lastProgress;
-  if (last > 0.85 && p < 0.15) {
+  // A crossing only counts once the kart has passed half-distance since the
+  // last one. The grid sits behind the line, so the green-light crossing is
+  // the race START, not lap 1 (it used to count — every race ran one lap
+  // short), and rocking back and forth over the line can't farm laps.
+  if (p > 0.4 && p < 0.6) kart._lapArmed = true;
+  if (last > 0.85 && p < 0.15 && kart._lapArmed) {
     // crossed the seam forward — check we're heading along startLine.direction
     _fwd.set(Math.sin(s.heading), 0, Math.cos(s.heading));
     if (_fwd.dot(kart._startDir) > 0.35 && !kart.finished) {
+      kart._lapArmed = false;
       s.lap += 1;
       // AUDIT r4: lap-split hook — main.js times the lap and feeds the HUD
       // (current/best lap chip + new-best flash; MK8D consistency feedback).

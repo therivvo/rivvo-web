@@ -12,7 +12,7 @@ import { CONFIG } from '../config.js';
 import { Kart } from '../entities/Kart.js';
 import { AIController } from '../entities/AIController.js';
 import { createItemBoxes } from '../entities/ItemBox.js';
-import { rollPowerUpType, useItem as applyItemEffect } from '../entities/PowerUp.js';
+import { rollPowerUpType, useItem as applyItemEffect, progressScore } from '../entities/PowerUp.js';
 
 const COUNTDOWN_SECONDS = CONFIG.game.countdownMs[0] || 3;
 const FINISH_SCORE_BASE = 1e9;
@@ -741,12 +741,13 @@ export class RaceManager {
       const lap = st.lap ?? kart.lap ?? 0;
       const progress01 = st.progress01 ?? kart.progress01 ?? 0;
       const finished = !!(kart.finished || st.finished);
-      let score = lap * 1000 + progress01;
+      const raceScore = progressScore(kart);
+      let score = raceScore;
       if (finished) {
         const fi = this.finishOrder.indexOf(kart);
         score = FINISH_SCORE_BASE - (fi >= 0 ? fi : this.karts.length) * 1000;
       }
-      return { kart, position: 0, lap, progress01, finished, score };
+      return { kart, position: 0, lap, progress01, finished, score, raceScore };
     });
     rows.sort((a, b) => b.score - a.score);
     rows.forEach((r, i) => {
@@ -932,13 +933,13 @@ export class RaceManager {
       if (rows[i].kart === shooter) { myIdx = i; break; }
     }
     if (myIdx <= 0) return null;
-    const myScore = rows[myIdx].lap * 1000 + rows[myIdx].progress01;
+    const myScore = rows[myIdx].raceScore;
     let best = null;
     let bestDiff = Infinity;
     for (let i = 0; i < myIdx; i++) {
       const r = rows[i];
       if (r.finished) continue;
-      const diff = r.lap * 1000 + r.progress01 - myScore;
+      const diff = r.raceScore - myScore;
       if (diff > 0 && diff < bestDiff) { bestDiff = diff; best = r.kart; }
     }
     return best;

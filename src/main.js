@@ -882,10 +882,8 @@ function startRaceInit() {
     const now = raceManager.elapsed;
     const lapMs = Math.round(Math.max(0, now - (playerKart._lastLapAt || 0)) * 1000);
     playerKart._lastLapAt = now;
-    // R26: the grid sits ~0.5s before the line — that first crossing is race
-    // start, not a completed lap. Sub-5s laps are physically impossible on
-    // either track (shortest real laps run 8s+), so seed the timer silently
-    // instead of freezing BEST at 0:00.5 for the whole race.
+    // KartPhysics no longer counts the grid → line crossing as a lap; this
+    // guard stays as a safety net against any sub-5s phantom split.
     if (lapMs < 5000) return;
     if (lap === 1) {
       playerKart._bestLapMs = lapMs;
@@ -1369,7 +1367,8 @@ loop.start((dt, t) => {
         audio.play('lap');
       }
       // FINAL LAP callout (audit v5 #5): banner + jingle on entering the last lap.
-      if (playerKart.state.lap === CONFIG.game.totalLaps && !finalLapShown) {
+      // state.lap counts COMPLETED laps, so the last lap starts at totalLaps - 1.
+      if (playerKart.state.lap === CONFIG.game.totalLaps - 1 && !finalLapShown) {
         finalLapShown = true;
         hud.showMessage('🏁 FINAL LAP!');
         audio.play('posUp', { volume: 0.7 });

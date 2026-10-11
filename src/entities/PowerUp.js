@@ -107,11 +107,15 @@ export function kartPosition(kart) {
   return st.position || { x: 0, y: 0, z: 0 };
 }
 
-/** Race progress score: lap * 1000 + progress01 (bigger = further along). */
+/** Race progress score: lap * 1000 + progress01 (bigger = further along).
+ *  A kart that hasn't reached half-distance since its last line crossing
+ *  (KartPhysics._lapArmed) but reads progress > 0.5 is still BEHIND the line
+ *  — on the starting grid, or backed over it — so it scores progress - 1. */
 export function progressScore(kart) {
   const st = kart.state || {};
   const lap = st.lap ?? kart.lap ?? 0;
-  const prog = st.progress01 ?? kart.progress01 ?? 0;
+  let prog = st.progress01 ?? kart.progress01 ?? 0;
+  if (!kart._lapArmed && prog > 0.5) prog -= 1;
   return lap * 1000 + prog;
 }
 
