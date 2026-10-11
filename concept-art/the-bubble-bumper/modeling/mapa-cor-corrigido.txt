@@ -1,0 +1,18 @@
+# MAPA PREFIXO->COR (autoridade: concept "the bubble bumper")
+# Medido no concept: AZUL (capacete+macacao) de 15,4-17,4% a 79% do topo = 62-63% da altura.
+# O concept NAO tem chassi azul: o bico/carroceria e BRANCO e os sidepods AMARELOS.
+#
+# REG=[('W_',       (0.04,0.04,0.04,1)),   # rodas: quase preto
+#      ('P_Head',   (0.10,0.35,0.85,1)),   # capacete: AZUL
+#      ('P_Visor',  (0.03,0.03,0.05,1)),   # viseira: escura
+#      ('P_',       (0.10,0.35,0.85,1)),   # <<< CORRIGIDO: macacao AZUL (era laranja 0.90,0.35,0.15)
+#      ('SP_',      (0.95,0.80,0.12,1)),   # sidepods: AMARELO
+#      ('C_Floor',  (0.04,0.05,0.08,1)),
+#      ('C_',       (0.90,0.90,0.93,1)),   # <<< CORRIGIDO: chassi BRANCO (era azul 0.15,0.25,0.75)
+#      ('B_',       (0.60,0.60,0.64,1)),
+#      ('R_',       (0.66,0.66,0.70,1))]
+# PENDENTE: o azul do modelo desce ate 92,5% vs 79% do concept -> as PERNAS do piloto (P_Thigh/
+# P_Shin/P_Boot) nao deveriam ser azuis (no concept o azul termina em 79%). Proxima correcao.
+
+# FINAL (validado): P_Thigh/P_Shin = (0.16,0.16,0.19) e P_Boot = (0.10,0.10,0.12)
+#   azul: inicio 13,5% (concept 15,4-17,4%) | fim 72-75% (concept 79%) | ocupa 58,6-61,2% (concept 62-63%) — CASOU

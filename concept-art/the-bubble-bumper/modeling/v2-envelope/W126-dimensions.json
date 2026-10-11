@@ -1,0 +1,20 @@
+{
+ "revision": "W126",
+ "length_m": 2.35,
+ "qa": {
+  "aprovado": true,
+  "non_manifold": 0,
+  "verts": 75256,
+  "pct_quads": 99.0
+ },
+ "iou": {
+  "side": 0.6808744245587258,
+  "front": 0.7832961298021927,
+  "top": 0.7177298688144705,
+  "rear": 0.7693216428241809,
+  "mean": 0.738
+ },
+ "pilot": "chibi: capacete > ombros; olhos+pupilas+sobrancelhas+sorriso em U por decal; pastilhas e cinto amarelos",
+ "rear": "3 escapamentos em triangulo visiveis; coletor deslocado para frente; coilover dourado",
+ "anchor": "comprimento 2.35 m (Hero Kart), escala auto-calibrada"
+}
