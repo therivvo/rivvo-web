@@ -68,7 +68,7 @@ const env = new Environment();
 env.trackId = NIGHT ? 2 : 1; // theme hook: 1 = sunny meadow world, 2 = neon city world
 env.palette = PALETTE; // per-track sky/fog/light/ground overrides
 bootOverlay.setStage('laying the circuit', 0.22);
-const track = buildTrack(scene, TRACK.points, { theme: TRACK.theme, palette: PALETTE, rampTs: TRACK.rampTs });
+const track = buildTrack(scene, TRACK.points, { theme: TRACK.theme, palette: PALETTE, rampTs: TRACK.rampTs ?? [] });
   // MK8 turbo strips breathe (Feco QA 2026-08-12): additive glow overlay pulse.
   const turboGlowMat = (track.turboPads && track.turboPads.glowMat) || null;
 env.buildEnvironment(scene, track); // track passed so props avoid the road

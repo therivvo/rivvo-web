@@ -94,7 +94,7 @@ export const CONFIG = {
   track: {
     // Track shape is defined by waypoints in TrackBuilder; these are global
     // visual/geometry knobs shared with physics collision.
-    roadWidth: 9,
+    roadWidth: 10, // m — real kart circuits run 8-12 m
     roadEdge: 0.9, // grass margin width
     curveSmoothness: 40, // segments per curve
     // Turbo pad cluster centers (normalized path positions; per-track values

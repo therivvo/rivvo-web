@@ -282,9 +282,12 @@ export class RaceManager {
       // the AI's progress01→index mapping (round(prog * n)) assumes exactly
       // n arc-length-uniform samples; a duplicate at n-1 sat right on the
       // finish seam where every kart crosses it.
-      this.centerline = track.path.getSpacedPoints(240).slice(0, 240);
+      // ~2.5 m spacing (240 samples on the original ~400 m loops) so the
+      // AI's corner-radius estimate stays sharp on 1-1.8 km tracks.
       const len = track.length || 500;
-      this.centerlineSpacing = Math.max(1.5, len / 240);
+      const n = Math.max(240, Math.ceil(len / 2.5));
+      this.centerline = track.path.getSpacedPoints(n).slice(0, n);
+      this.centerlineSpacing = len / n;
     } else if (track && track.waypoints && track.waypoints.length) {
       this.centerline = track.waypoints;
       const len = track.length || 500;

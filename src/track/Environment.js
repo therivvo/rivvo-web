@@ -499,9 +499,11 @@ export class Environment {
       // ficava a vários metros da pista real → _onTrack dizia "fora" para
       // objetos DENTRO da pista (arbustos/lobes a 0.8m passavam). 240
       // amostras (~2.5m de espaçamento) resolvem a subestimação em curva.
+      // ~2.5 m spacing on any track length (240 on the original loops).
+      const n = Math.max(240, Math.ceil(track.path.getLength() / 2.5));
       this._trackSamples = [];
-      for (let i = 0; i < 240; i++) {
-        this._trackSamples.push(track.path.getPointAt(i / 240));
+      for (let i = 0; i < n; i++) {
+        this._trackSamples.push(track.path.getPointAt(i / n));
       }
     }
     // --- fog & background ------------------------------------------------

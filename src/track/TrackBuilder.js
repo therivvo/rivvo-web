@@ -159,6 +159,15 @@ export function getRoadWidthAt() {
   return CONFIG.track.roadWidth;
 }
 
+/**
+ * Sample count giving ~`spacing` metres per step along `path`, never below
+ * `min` (the counts were tuned on the original ~400 m loops; real-scale
+ * tracks are 1-1.8 km and need proportionally more).
+ */
+function samplesFor(path, spacing, min) {
+  return Math.max(min, Math.ceil(path.getLength() / spacing));
+}
+
 // Deterministic smooth pseudo-noise for terrain (no external libs).
 // Returns raw undulation in ~[-0.42, +0.42]. The corridor near the road
 // keeps the historical *0.5 scale (±0.25m — bit-identical to the original
@@ -189,46 +198,68 @@ function broadHill(x, z) {
 let _heightCachePath = null;
 let _heightSamples = null;
 /**
- * Distance-aware terrain height — the EXACT formula buildTerrain uses
- * (smoothH scaled by corridor falloff + broadHill landforms). Exported so
- * Environment.js grounds its far-field props on the same rolling field
- * (agent flag: the Environment's own smoothH copy ignored the new hills →
- * trees/rocks at 46-162m floated/buried 0.5-3m).
+ * Distance-aware terrain height — the ONE formula for the ground: the mesh
+ * (buildTerrain), Environment props and off-road karts all read it, so they
+ * always agree.
+ *
+ * Near the road the ground follows the ROAD'S OWN HEIGHT (the nearest path
+ * sample's y), so elevated sections sit on an embankment instead of floating
+ * over the field. Within 10 m of the centreline it is the flat racing
+ * corridor; beyond, it blends into the open field (smoothH noise amplified +
+ * broadHill landforms). The blend widens with the road's height so a 10 m
+ * climb gets a gentle hillside, not a cliff.
  */
 export function terrainHeight(x, z, path) {
   if (path !== _heightCachePath) {
     _heightCachePath = path || null;
     _heightSamples = null;
     if (path) {
-      _heightSamples = new Float32Array(400 * 2);
+      const n = samplesFor(path, 2.5, 400);
+      _heightSamples = new Float32Array(n * 3);
       const sp = new THREE.Vector3();
-      for (let i = 0; i < 400; i++) {
-        path.getPointAt(i / 400, sp);
-        _heightSamples[i * 2] = sp.x;
-        _heightSamples[i * 2 + 1] = sp.z;
+      for (let i = 0; i < n; i++) {
+        path.getPointAt(i / n, sp);
+        _heightSamples[i * 3] = sp.x;
+        _heightSamples[i * 3 + 1] = sp.z;
+        _heightSamples[i * 3 + 2] = sp.y;
       }
     }
   }
   let d2 = Infinity;
+  let roadY = 0;
   if (_heightSamples) {
-    for (let i = 0; i < 400; i++) {
-      const dx = x - _heightSamples[i * 2];
-      const dz = z - _heightSamples[i * 2 + 1];
+    for (let i = 0; i < _heightSamples.length; i += 3) {
+      const dx = x - _heightSamples[i];
+      const dz = z - _heightSamples[i + 1];
       const dd = dx * dx + dz * dz;
-      if (dd < d2) d2 = dd;
+      if (dd < d2) { d2 = dd; roadY = _heightSamples[i + 2]; }
     }
   }
   const d = Math.sqrt(d2);
-  const raw = Math.min(1, Math.max(0, (d - 10) / 15));
+  const blend = 15 + 3 * Math.abs(roadY);
+  const raw = Math.min(1, Math.max(0, (d - 10) / blend));
   const falloff = raw * raw * (3 - 2 * raw); // C1 smoothstep
-  // AUDIT r18-FIX (gameplay auditor): broadHill 5.0/1.4 × 1.2 delivered
-  // ±8.4m — ridge walls that occluded the track ahead. Scale to ~±5m.
-  return -0.05 + smoothH(x, z) * 0.5 * (1 + falloff * 2.5) + broadHill(x, z) * 0.7 * falloff; // AUDIT: match the mesh (-0.05) — roadside step 0.43->0.23m
+  // Field: AUDIT r18-FIX (gameplay auditor) — broadHill scaled ×0.7 to keep
+  // hills to ~±5m (ridge walls used to occlude the track ahead). The -0.05
+  // base keeps a small kerb-like step (~0.23m) below the 0.18 road surface.
+  const field = smoothH(x, z) * 0.5 * (1 + falloff * 2.5) + broadHill(x, z) * 0.7 * falloff;
+  return -0.05 + roadY * (1 - falloff) + field;
+}
+
+/** Ground plane size (m) covering the whole track plus a scenery margin. */
+function terrainSizeFor(path) {
+  let extent = 0;
+  const p = new THREE.Vector3();
+  for (let i = 0; i < 200; i++) {
+    path.getPointAt(i / 200, p);
+    extent = Math.max(extent, Math.abs(p.x), Math.abs(p.z));
+  }
+  return Math.max(460, 2 * (extent + 200));
 }
 
 function buildRoadRibbon(path, length, opts = {}) {
   const roadW = opts.width || getRoadWidthAt();
-  const segments = opts.segments || 520;
+  const segments = opts.segments || samplesFor(path, 1.5, 520);
   const yOff = opts.yOffset ?? 0.18;
   // AUDIT FIX R12i: suporte a SUB-TRECHO (t0..t1) — o turbo pad precisa de
   // uma ribbon que cubra só o cluster (ex: t 0.18±len/2), não o path todo.
@@ -448,58 +479,16 @@ function buildEdgeShadowLine(path, length, neon = false) {
 }
 
 function buildTerrain(path, cityMode = false, palette = null) {
-  const size = 460;
-  const seg = 72;
+  const size = terrainSizeFor(path);
+  const seg = Math.ceil(size / 6.4); // ~6.4 m cells (72 on the original 460 m plane)
   const geo = new THREE.PlaneGeometry(size, size, seg, seg);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
 
-  // Pre-sample the track loop so every terrain vertex can measure its
-  // distance to the road corridor. 400 samples ≈ 1.1m spacing — far finer
-  // than the 10m flat zone we need to resolve.
-  const SAMPLE_COUNT = 400;
-  const trackSamples = new Float32Array(SAMPLE_COUNT * 2);
-  const sp = new THREE.Vector3();
-  for (let i = 0; i < SAMPLE_COUNT; i++) {
-    path.getPointAt(i / SAMPLE_COUNT, sp);
-    trackSamples[i * 2] = sp.x;
-    trackSamples[i * 2 + 1] = sp.z;
-  }
-
+  // Shared ground formula (see terrainHeight): road-following corridor that
+  // blends into the rolling field.
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-
-    // Distance to the nearest track sample.
-    let d2 = Infinity;
-    for (let s = 0; s < trackSamples.length; s += 2) {
-      const dx = x - trackSamples[s];
-      const dz = z - trackSamples[s + 1];
-      const dd = dx * dx + dz * dz;
-      if (dd < d2) d2 = dd;
-    }
-    const d = Math.sqrt(d2);
-
-    // Corridor falloff: 0 inside 10m of the track (flat racing surface),
-    // 1 beyond 25m (full rolling field). Smoothstep keeps the join C1
-    // continuous — the vertex mesh stays smooth, no cliffs.
-    const t = Math.min(1, Math.max(0, (d - 10) / 15));
-    const falloff = t * t * (3 - 2 * t);
-
-    // Near the track this reduces to the historical smoothH*0.5 - 0.25
-    // (bit-identical heights → road, shoulders, kerbs, rails, ramps and the
-    // kart's ground sampling are exactly as before). Beyond the corridor the
-    // same noise scales up to ±0.9m and broadHill adds ±4m of ~80m
-    // wavelength landforms → ~±5m rolling hills on the horizon.
-    // AUDIT r19-FIX: MUST match terrainHeight() (×0.7) — the r19 fix only
-    // scaled the physics sample function, leaving the mesh at ×1.2 (±8.4m);
-    // the divergence made off-road karts sink/float on the visible hills.
-    // AUDIT (user: karts at the track edge sink below ground): the old -0.25
-    // base made the roadside 0.43m below the 0.18 road — a visible step where
-    // karts appeared to dive into the earth. -0.05 keeps a small kerb-like
-    // step (~0.23m) without the 'sinking' read.
-    const y = -0.05 + smoothH(x, z) * 0.5 * (1 + falloff * 2.5) + broadHill(x, z) * 0.7 * falloff;
-    pos.setY(i, y);
+    pos.setY(i, terrainHeight(pos.getX(i), pos.getZ(i), path));
   }
   geo.computeVertexNormals();
   // AUDIT r4: mow stripes — the field read as one flat green at chase
@@ -546,7 +535,7 @@ function buildSidewalk(path, length, side) {
   const roadW = getRoadWidthAt();
   const offset = side * (roadW / 2 + 1.6); // outside rail (+1.1) + margin
   const w = 1.1;
-  const segs = 520;
+  const segs = samplesFor(path, 1.5, 520);
   const positions = new Float32Array((segs + 1) * 2 * 3);
   const uvs = new Float32Array((segs + 1) * 2 * 2);
   const indices = [];
@@ -740,7 +729,8 @@ function buildCurbs(path, length, side, opts = {}) {
  * top rail. Top/bottom/side faces make it read from any camera angle.
  */
 function buildEdgeRibbon(path, lateralOffset, yBase, w, h, mat) {
-  const N = 100; // AUDIT PERF-R35 (2026-08-14): 200→100 — segmentos de ~7m num rail reto contínuo, imperceptível; corta ~50% dos tris das ribbons
+  // AUDIT PERF-R35: ~7m segments on the 400m loops; ~5m keeps 16m hairpins smooth.
+  const N = samplesFor(path, 5, 100);
   const nrm = new THREE.Vector3();
   const tan = new THREE.Vector3();
   const p = new THREE.Vector3();
@@ -1472,7 +1462,7 @@ function buildGridNumbers(startLine) {
  * Painted direction chevrons at the sharpest corners (curvature > threshold),
  *  so the road reads "race track" and not a plain strip. */
 function buildDirectionArrows(path) {
-  const SAMPLES = 160;
+  const SAMPLES = samplesFor(path, 2.5, 160);
   const tan = new THREE.Vector3();
   const tan2 = new THREE.Vector3();
   const p = new THREE.Vector3();
@@ -1524,7 +1514,7 @@ function buildDirectionArrows(path) {
  * track dressing). Reuses the same curvature scan as the direction arrows.
  */
 function buildTireBarriers(path, roadW) {
-  const SAMPLES = 160;
+  const SAMPLES = samplesFor(path, 2.5, 160);
   const tan = new THREE.Vector3();
   const tan2 = new THREE.Vector3();
   const p = new THREE.Vector3();
@@ -1835,7 +1825,7 @@ function flowerTexture() {
  * (no collider) so they never block the kart.
  */
 function buildApexCones(path, length, roadW) {
-  const SAMPLES = 160;
+  const SAMPLES = samplesFor(path, 2.5, 160);
   const dt = 1 / SAMPLES;
   const tan = new THREE.Vector3();
   const tan2 = new THREE.Vector3();
@@ -1925,7 +1915,7 @@ function buildApexCones(path, length, roadW) {
  * instanced + 3 InstancedMesh de print (uma por rótulo) = 4 draw calls.
  */
 function buildBrakeBoards(path, length, roadW) {
-  const SAMPLES = 160;
+  const SAMPLES = samplesFor(path, 2.5, 160);
   const dt = 1 / SAMPLES;
   const tan = new THREE.Vector3();
   const tan2 = new THREE.Vector3();
@@ -2363,7 +2353,7 @@ export function buildTrack(scene, trackPath = TRACK_PATH, opts = {}) {
   scene.add(group);
 
   const waypoints = [];
-  const WAY_COUNT = 90;
+  const WAY_COUNT = samplesFor(path, 10, 90);
   for (let i = 0; i < WAY_COUNT; i++) {
     waypoints.push(path.getPointAt(i / WAY_COUNT).clone());
   }
