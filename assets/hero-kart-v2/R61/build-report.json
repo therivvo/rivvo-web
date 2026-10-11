@@ -1,0 +1,24 @@
+{
+  "revision": "R61",
+  "blender": "4.0.2",
+  "blend": "/mnt/storage2TB/Coding-Projects/super-kart-3djs/assets/hero-kart-v2/R61/hero-kart-v2-R61.blend",
+  "windshield_mount_count": 4,
+  "windshield_width_m": 0.47,
+  "cockpit_width_reference_m": 0.62,
+  "windshield_width_ratio": 0.7580645161290323,
+  "windshield_rear_edge_y_m": -0.62,
+  "cockpit_rim_rear_y_m": 0.5,
+  "forearm_clearance_target_m": 0.05,
+  "steering_hub_diameter_m": 0.112,
+  "steering_hub_diameter_ratio_front_wheel": 0.19999999999999998,
+  "hand_grip_angles_deg": [
+    150,
+    30
+  ],
+  "no_runtime_integration": true,
+  "helmet_shell_wrap": true,
+  "visor_pivot_count": 2,
+  "steering_continuous_ring": true,
+  "steering_column_coaxial": true,
+  "no_windshield_over_driver": true
+}

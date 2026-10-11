@@ -1,0 +1,48 @@
+{
+  "revision": "R59",
+  "blender": "4.0.2",
+  "blend": "/mnt/storage2TB/Coding-Projects/super-kart-3djs/assets/hero-kart-v2/R59/hero-kart-v2-R59.blend",
+  "windshield_mount_count": 4,
+  "windshield_width_ratio": 0.7580645161290323,
+  "windshield_rear_edge_ahead_m": 1.12,
+  "steering_hub_diameter_ratio_front_wheel": 0.19999999999999998,
+  "steering_hub_ratio": 0.19999999999999998,
+  "helmet_shell_wrap": true,
+  "visor_pivot_count": 2,
+  "steering_continuous_ring": true,
+  "steering_column_coaxial": true,
+  "no_windshield_over_driver": true,
+  "required_object_counts": {
+    "WindshieldMountLower": 2,
+    "WindshieldMountUpper": 2,
+    "WindshieldMountFoot": 2,
+    "WindshieldMountCap": 2,
+    "DriverHeadInternal": 1,
+    "HelmetTemple": 2,
+    "HelmetJaw": 2,
+    "HelmetNape": 2,
+    "HelmetVisorPivot": 4,
+    "HelmetIntegratedChin": 1,
+    "DriverCollar": 1,
+    "SteeringHub": 2,
+    "SteeringHubCap": 1,
+    "SteeringColumn": 2
+  },
+  "hand_angles": [
+    30.0,
+    150.0
+  ],
+  "all_pass": true,
+  "checks": {
+    "revision": true,
+    "mounts": true,
+    "width_ratio": true,
+    "rear_edge": true,
+    "hub_ratio": true,
+    "helmet_blocks": true,
+    "chin_collar": true,
+    "coaxial_stack": true,
+    "continuous_ring": true,
+    "hand_angles": true
+  }
+}
