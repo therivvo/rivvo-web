@@ -1,6 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "bun install --frozen-lockfile",
-  "buildCommand": "ROOT=\"$PWD\"; if [ -d apps/web ]; then cd apps/web; fi; bun run build:vercel --out \"$ROOT/.vercel/output\"",
-  "framework": null
-}
