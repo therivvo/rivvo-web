@@ -455,6 +455,13 @@ function nearLandmark(x, z, margin = 0) {
   return false;
 }
 
+/**
+ * Radius of the original ~400 m loops the hand-placed far scenery was laid
+ * out around. On bigger (real-scale) tracks everything placed beyond it is
+ * pushed outward by the extra extent — see Environment._farField().
+ */
+const FAR_BASE_R = 70;
+
 export class Environment {
   constructor() {
     this.clouds = [];
@@ -479,6 +486,85 @@ export class Environment {
       if (dx * dx + dz * dz < r2) return true;
     }
     return false;
+  }
+
+  /**
+   * Run a scenery builder laid out around the original ~70 m loops, then
+   * push everything it placed beyond FAR_BASE_R radially outward by
+   * this._worldPad, so it clears real-scale tracks. Object sizes and their
+   * gap to the track edge are kept. `reground` re-seats ground props on the
+   * terrain at their new spot (sky props keep their height).
+   */
+  _farField(scene, build, reground = true) {
+    const before = new Set(scene.children);
+    build();
+    if (!(this._worldPad > 0)) return;
+    for (const obj of scene.children) {
+      if (!before.has(obj)) this._pushOut(obj, reground);
+    }
+  }
+
+  /** Radially push one object (or its instances / children) — see _farField. */
+  _pushOut(obj, reground) {
+    const pad = this._worldPad;
+    const target = (x, z) => {
+      const r = Math.hypot(x, z);
+      if (r <= FAR_BASE_R) return null; // infield prop: stays put
+      const k = (r + pad) / r;
+      return [x * k, z * k];
+    };
+    const lift = (x0, z0, x1, z1) => (reground ? this._gy(x1, z1) - this._gy(x0, z0) : 0);
+
+    if (obj.isInstancedMesh) {
+      const m = new THREE.Matrix4();
+      let moved = false;
+      for (let i = 0; i < obj.count; i++) {
+        obj.getMatrixAt(i, m);
+        const e = m.elements;
+        const to = target(e[12], e[14]);
+        if (!to) continue;
+        e[13] += lift(e[12], e[14], to[0], to[1]);
+        e[12] = to[0];
+        e[14] = to[1];
+        obj.setMatrixAt(i, m);
+        moved = true;
+      }
+      if (moved) {
+        obj.instanceMatrix.needsUpdate = true;
+        obj.computeBoundingSphere(); // frustum culling uses the instance bounds
+      }
+      return;
+    }
+
+    const p = obj.position;
+    const to = target(p.x, p.z);
+    if (to) {
+      const dy = lift(p.x, p.z, to[0], to[1]);
+      // Animated props (cloud drift, water bob) re-derive their position from
+      // remembered bases every frame — move those too.
+      const u = obj.userData;
+      if (typeof u.baseX === 'number') u.baseX += to[0] - p.x;
+      if (typeof u.baseZ === 'number') u.baseZ += to[1] - p.z;
+      if (typeof u.baseY === 'number') u.baseY += dy;
+      p.y += dy;
+      p.x = to[0];
+      p.z = to[1];
+      return;
+    }
+    if (Math.hypot(p.x, p.z) > 1) return; // genuine infield object
+    if (obj.isMesh && obj.geometry) {
+      // A ring centred on the origin (haze band): widen it in world XZ.
+      obj.geometry.computeBoundingSphere();
+      const R = obj.geometry.boundingSphere.radius;
+      if (R > FAR_BASE_R) {
+        const k = (R + pad) / R;
+        obj.updateMatrix();
+        obj.applyMatrix4(new THREE.Matrix4().makeScale(k, 1, k));
+      }
+      return;
+    }
+    // A group at the origin holding world-placed children.
+    for (const child of obj.children) this._pushOut(child, reground);
   }
 
   buildEnvironment(scene, track = null) {
@@ -506,6 +592,11 @@ export class Environment {
         this._trackSamples.push(track.path.getPointAt(i / n));
       }
     }
+    // How far this track reaches beyond the original loops: far scenery,
+    // sky and fog move out by this much.
+    const extentR = (this._trackSamples || []).reduce((m, p) => Math.max(m, Math.hypot(p.x, p.z)), 0);
+    this._worldPad = Math.max(0, extentR - FAR_BASE_R);
+    const pad = this._worldPad;
     // --- fog & background ------------------------------------------------
     // trackId 2 (NEON CITY) swaps the sunny meadow for an urban night theme:
     // night fog color matches the sky horizon so the dome blends seamlessly.
@@ -515,7 +606,7 @@ export class Environment {
     const pal = this.palette || {};
     const dayHaze = pal.fog ?? 0xbfe6ff;
     // AUDIT: night haze carries a purple tint so distance reads neon-lit, not void-black
-    scene.fog = new THREE.Fog(pal.fog ?? (night ? 0x141034 : 0xbfe6ff), night ? 120 : 70, night ? 420 : 430);
+    scene.fog = new THREE.Fog(pal.fog ?? (night ? 0x141034 : 0xbfe6ff), night ? 120 : 70, (night ? 420 : 430) + pad);
 
     // Sky dome — PREMIUM PASS (2026-08-21): ShaderMaterial procedural (cookbook
     // gradient-sky recipe) substitui a textura canvas. Gradiente contínuo sem
@@ -536,7 +627,7 @@ export class Environment {
     const sky = new THREE.Mesh(
       // AUDIT FIX: 24 segments faceted the horizon (~135m chords at 520m
       // radius); 64x32 reads smooth even from the high chase camera.
-      new THREE.SphereGeometry(520, 64, 32),
+      new THREE.SphereGeometry(520 + pad, 64, 32),
       new THREE.ShaderMaterial({
         side: THREE.BackSide,
         depthWrite: false,
@@ -593,10 +684,10 @@ export class Environment {
     // superfície roxa clara (fog:false, depthWrite:false) sobre a qual o
     // bloom âmbar pintava a "COLINA VERDE-OLIVA" do horizonte. Sem postfx
     // (?nobl) ela sumia; com anel removido à noite, some também.
-    if (!night) this.buildHazeRing(scene, dayHaze, 185, 30);
+    if (!night) this._farField(scene, () => this.buildHazeRing(scene, dayHaze, 185, 30));
     // AUDIT R12 (2ª camada de profundidade — Meadow): névoa BAIXA na base
     // das colinas (a camada R146/y6.5 é alta; sem a baixa a base lê recorte).
-    if (!night) this.buildGroundHaze(scene, dayHaze, 100, 2.0, 38, 4.2, 0.5);
+    if (!night) this._farField(scene, () => this.buildGroundHaze(scene, dayHaze, 100, 2.0, 38, 4.2, 0.5));
 
     // --- lights (AAA rig: key + fill + sky/ground hemi + rim) --------------
     // NEON CITY swaps the warm sunny rig for dim cool moonlight (the moon
@@ -682,41 +773,40 @@ export class Environment {
     if (night) {
       this.buildNeonCity(scene, track);
       // AUDIT R12 (2ª camada — Neon): névoa baixa na base das torres (50-90m)
-      this.buildGroundHaze(scene, pal.fog ?? 0x141034, 72, 2.3, 34, 4.6, 0.75); // AUDIT R21f: alpha 0.55→0.75 — o haze mais denso abafa o glow bloom residual no horizonte
+      this._farField(scene, () => this.buildGroundHaze(scene, pal.fog ?? 0x141034, 72, 2.3, 34, 4.6, 0.75)); // AUDIT R21f: alpha 0.55→0.75 — o haze mais denso abafa o glow bloom residual no horizonte
       this.buildNeonGrid(scene, track); // AUDIT 2026-09-02 AAA: grid neon infinito substitui chão oliva (critic 1/10)
     }
 
     if (!night) {
       // --- horizon haze (warm rings behind the mountains) ------------------
-      this.buildHorizonHaze(scene);
+      this._farField(scene, () => this.buildHorizonHaze(scene));
 
       // --- mountains (four haze layers) ------------------------------------
-      this.buildMountains(scene);
+      this._farField(scene, () => this.buildMountains(scene));
 
       // --- clouds ----------------------------------------------------------
-      this.buildClouds(scene);
-      this.buildSunGlow(scene);
+      this._farField(scene, () => this.buildClouds(scene), false);
+      this._farField(scene, () => this.buildSunGlow(scene), false);
 
       // --- water -----------------------------------------------------------
-      if (!pal.noWater) this.buildWater(scene);
+      if (!pal.noWater) this._farField(scene, () => this.buildWater(scene));
 
       // --- palms & props ---------------------------------------------------
-      this.buildPalms(scene);
-      this.buildForest(scene);
+      this._farField(scene, () => this.buildPalms(scene));
+      this._farField(scene, () => this.buildForest(scene));
       this.buildProps(scene, track);
-      this.buildFieldLandmarks(scene);
+      this._farField(scene, () => this.buildFieldLandmarks(scene));
       this.buildInfield(scene, track); // r5: densify the enclosed infield grass
       this.buildRoadsideFlowersAndRocks(scene, track);
       this.buildVergeGravel(scene, track); // soft gravel verge band (FECO: flat 16-bit verge)
       this.buildGrassTufts(scene, track); // 3D blade tufts along the verges
       this.buildMeadowGrassField(scene, track); // AUDIT R12: densidade meadow (faixa 4.5-22m)
       this.buildLightPoles(scene, track); // meadow light poles
-      this.buildDistanceMarks(scene); // 100m/200m posts (was dead code — never called)
       this.buildCornerSigns(scene, track);
-      this.buildGrandstand(scene);
+      this.buildGrandstand(scene, track);
       this.buildRoadsideCrowd(scene, track);
-      this.buildFlags(scene);
-      this.buildBalloons(scene);
+      this._farField(scene, () => this.buildFlags(scene));
+      this._farField(scene, () => this.buildBalloons(scene), false);
       this.buildTracksideBanners(scene, track);
       this.buildTireStacks(scene, track);
       this.buildHayBales(scene, track);
@@ -3655,13 +3745,10 @@ export class Environment {
    * straight line). Keeping the empty method is a trap — delete it entirely.
    */
 
-  buildGrandstand(scene) {
-    // Big grandstand with striped awning near a curve — crowd anchor.
-    const grandstandSpots = [
-      { x: -50, z: -14, ry: 1.5 },  // beside the start straight, IN FRONT of the grid camera
-      { x: -10, z: -72, ry: -0.3 },
-      { x: 56, z: 50, ry: 2.2 },
-    ];
+  buildGrandstand(scene, track) {
+    // Three stands just outside the loop: beside the start straight (in front
+    // of the grid camera) and two more around the lap, facing the road.
+    const grandstandSpots = this._grandstandSpots(track);
     // AUDIT (agent: palette was flat/loud neon): cloth-toned shirts in
     // saturated-but-wearable colors — red, orange, green, blue, purple, pink,
     // white, steel, navy — reads as a dressed crowd, not candy blobs.
@@ -3877,66 +3964,31 @@ export class Environment {
     }
   }
 
-  buildDistanceMarks(scene) {
-    // 100m/200m distance posts along the far stretches (cheap racing flavor).
-    const marks = [
-      { x: -30, z: -52, ry: 0.5, label: '100' },
-      { x: 30, z: -60, ry: -0.4, label: '200' },
-      { x: 62, z: -20, ry: 1.5, label: '100' },
-      { x: 46, z: 56, ry: 2.0, label: '200' },
-      { x: -40, z: 52, ry: -2.0, label: '100' },
-    ];
-    // Distance board texture: amber panel with a bold dark label (the old
-    // boards were plain amber boxes — user flagged them as unreadable yellow
-    // cubes).
-    if (!this._distTex) {
-      const c = document.createElement('canvas');
-      c.width = 128;
-      c.height = 64;
-      const g = c.getContext('2d');
-      g.fillStyle = '#ffd166';
-      g.fillRect(0, 0, 128, 64);
-      g.strokeStyle = '#1b2a41';
-      g.lineWidth = 6;
-      g.strokeRect(4, 4, 120, 56);
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      this._distTexBase = tex;
-    }
-    const postMat = toonMaterial(0x8b7a5c, {});
-    for (const m of marks) {
-      if (this._onTrack(m.x, m.z, 8)) continue; // distance marks off the road
-      this._contactAOs.push({ x: m.x, z: m.z, r: 1.1 }); // AUDIT AAA: AO do poste de distância
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.6, 8), postMat);
-      post.position.set(m.x, smoothH(m.x, m.z) * 0.5 - 0.25 + 0.8, m.z);
-      post.rotation.y = m.ry;
-      scene.add(post);
-      // Per-label texture (cache by label).
-      const key = 'dist_' + m.label;
-      if (!this._distTexes) this._distTexes = {};
-      if (!this._distTexes[key]) {
-        const c = document.createElement('canvas');
-        c.width = 128;
-        c.height = 64;
-        const g = c.getContext('2d');
-        g.drawImage(this._distTexBase.image, 0, 0);
-        g.fillStyle = '#1b2a41';
-        g.font = 'bold 42px sans-serif';
-        g.textAlign = 'center';
-        g.textBaseline = 'middle';
-        g.fillText(m.label + 'm', 64, 34);
-        const tex = new THREE.CanvasTexture(c);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        this._distTexes[key] = tex;
-      }
-      const board = new THREE.Mesh(
-        new THREE.BoxGeometry(0.9, 0.5, 0.08),
-        new THREE.MeshBasicMaterial({ map: this._distTexes[key], color: 0xffffff })
-      );
-      board.position.set(m.x, smoothH(m.x, m.z) * 0.5 - 0.25 + 1.35, m.z);
-      board.rotation.y = m.ry;
-      scene.add(board);
-    }
+  /**
+   * Grandstand spots derived from the track: on the OUTSIDE of the loop (away
+   * from its centroid), 14 m beyond the road edge, rotated to face the road.
+   * A stand's seating faces -(sin ry, cos ry).
+   */
+  _grandstandSpots(track) {
+    if (!track || !track.path) return [];
+    const path = track.path;
+    const cent = new THREE.Vector3();
+    const p = new THREE.Vector3();
+    const tan = new THREE.Vector3();
+    for (let i = 0; i < 64; i++) cent.add(path.getPointAt(i / 64, p));
+    cent.multiplyScalar(1 / 64);
+    const offset = CONFIG.track.roadWidth / 2 + 14;
+    return [0.03, 0.36, 0.69].map((t) => {
+      path.getPointAt(t, p);
+      path.getTangentAt(t, tan);
+      let nx = -tan.z;
+      let nz = tan.x;
+      const l = Math.hypot(nx, nz) || 1;
+      nx /= l;
+      nz /= l;
+      if (nx * (p.x - cent.x) + nz * (p.z - cent.z) < 0) { nx = -nx; nz = -nz; } // outward
+      return { x: p.x + nx * offset, z: p.z + nz * offset, ry: Math.atan2(nx, nz) };
+    });
   }
 
   /**
@@ -5828,7 +5880,8 @@ export class Environment {
 
   /** AUDIT 2026-09-02 AAA: grid neon infinito — substitui o chão oliva plano (critic 1/10). */
   buildNeonGrid(scene, track) {
-    const size = 900;
+    const pad = this._worldPad || 0;
+    const size = 900 + 2 * pad;
     const geo = new THREE.PlaneGeometry(size, size, 1, 1);
     const mat = new THREE.ShaderMaterial({
       transparent: true,
@@ -5836,15 +5889,17 @@ export class Environment {
       fog: false,
       uniforms: {
         uTime: { value: 0 },
+        uPad: { value: pad }, // fades move out with the world (real-scale tracks)
       },
       vertexShader: `varying vec2 vUv; varying vec3 vWorld; void main(){ vUv=uv; vec4 w=modelMatrix*vec4(position,1.0); vWorld=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
       fragmentShader: `
         varying vec2 vUv; varying vec3 vWorld;
         uniform float uTime;
+        uniform float uPad;
         void main(){
           vec2 uv = vWorld.xz;
           float dist = length(uv);
-          float fade = 1.0 - smoothstep(180.0, 420.0, dist);
+          float fade = 1.0 - smoothstep(180.0 + uPad, 420.0 + uPad, dist);
           // grid lines: 8m spacing — thickness grows with distance to avoid moiré
           float spacing = 8.0;
           float w = fwidth(uv.x / spacing) * 3.0; // adaptive line width
@@ -5853,7 +5908,7 @@ export class Environment {
           float grid = 1.0 - min(line, 1.0);
           grid = pow(grid, 1.0);
           // distance fade: thin out grid beyond 300m
-          float distFade = 1.0 - smoothstep(280.0, 450.0, dist);
+          float distFade = 1.0 - smoothstep(280.0 + uPad, 450.0 + uPad, dist);
           grid *= distFade;
           // pulse
           float pulse = 0.85 + 0.15 * sin(uTime * 1.2 + dist * 0.02);
