@@ -1,16 +1,19 @@
 /**
- * Super Kart 3D.js — arcade kart physics.
+ * Super Kart 3D.js — kart physics (real-world scale).
  * Pure-ish step mutating `kart.state` (plus a few private `kart._*` fields).
- * Model (all knobs from CONFIG.physics):
- *   - steer rate scales with speed (steerSpeedLow when slow, steerSpeed at
- *     speed, driftSteer while drifting)
+ * Model (all knobs from CONFIG.physics, SI units):
+ *   - steering: bicycle model — the steering angle (speed-sensitive lock)
+ *     requests a yaw rate v/L·tan(δ); tyre grip caps it at gripLateral / v,
+ *     so cornering speed is √(grip × radius). Asking for more scrubs speed
+ *     (understeer); off-road grip is lower.
+ *   - longitudinal: thrust min(launchAccel, enginePower / v) against rolling
+ *     resistance + aero drag (drag solved so top speed = the target speed),
+ *     engine braking, brakes, gravity along the road slope
  *   - drift: charge 0..1 while drifting above driftMinSpeed; releasing with
  *     charge >= driftReleaseBoost fires a mini-boost via kart.applyBoost()
  *   - lateral velocity with exponential grip (lateralGrip; looser while
- *     drifting) — produces the classic drift slide
- *   - friction, braking → reverse (reverseSpeed floor)
- *   - off-road: beyond road half-width, max speed scaled by
- *     CONFIG.track.offRoadMaxSpeedFactor
+ *     drifting) — produces the drift slide
+ *   - off-road: lower grip + extra rolling resistance beyond the road edge
  *   - wall bounce at the road edge + grass margin (collisionBounce)
  *   - gravity / airtime with landing squash
  *   - squash & stretch: group.scale.y eases toward kart._scaleTarget
@@ -23,7 +26,9 @@ import { CONFIG } from '../config.js';
 // corridor — off-road karts must ride it or they bury/float on the hills.
 import { terrainHeight } from '../track/TrackBuilder.js';
 
-const SAMPLES = 192; // points around the loop for nearest-sample search
+const MIN_SAMPLES = 192; // points around the loop for nearest-sample search
+const SAMPLE_SPACING = 3; // metres between samples on long tracks
+const GRAVITY = 9.81;
 
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
@@ -44,8 +49,8 @@ function ensureSamples(kart, track) {
     kart._sampleIndex = 0;
     return kart._samples;
   }
-  const N = SAMPLES;
   const path = track.path;
+  const N = Math.max(MIN_SAMPLES, Math.ceil(path.getLength() / SAMPLE_SPACING));
   const pos = [];
   const tan = [];
   const len = [0];
@@ -61,7 +66,13 @@ function ensureSamples(kart, track) {
     len.push(total);
     prev = p;
   }
-  const samples = { track, N, pos, tan, len, total: Math.max(total, 0.001) };
+  // Road gradient (rise over run) from each sample to the next, for gravity.
+  const slope = pos.map((p, i) => {
+    const q = pos[(i + 1) % N];
+    const run = Math.hypot(q.x - p.x, q.z - p.z);
+    return run > 1e-3 ? (q.y - p.y) / run : 0;
+  });
+  const samples = { track, N, pos, tan, len, slope, total: Math.max(total, 0.001) };
   _sampleCache.set(track, samples);
   kart._samples = samples;
   kart._sampleIndex = 0;
@@ -131,6 +142,7 @@ function nearestSample(kart, samples) {
     lateralDist,
     groundY: sp.y,
     tan,
+    slope: samples.slope[idx],
   };
 }
 
@@ -306,8 +318,10 @@ export class KartPhysics {
     // AUDIT r5: dropped the `!s.boost` gate — MK8D pads fire even mid-boost
     // (a drift-boost pass over a pad used to get nothing).
     if (track.turboPads && track.turboPads.ts && s.turboBoostMs <= 0) {
+      const window01 = (T.turboPadWindow ?? 6) / samples.total;
       for (let i = 0; i < track.turboPads.ts.length; i++) {
-        if (Math.abs(s.progress01 - track.turboPads.ts[i]) <= 0.015) {
+        const d = Math.abs(s.progress01 - track.turboPads.ts[i]);
+        if (Math.min(d, 1 - d) <= window01) {
           s.turboBoostMs = 1200;
       kart._onTurboBoost?.();
           break;
@@ -317,6 +331,7 @@ export class KartPhysics {
 
     const tan = near.tan;
     const speedAbs = Math.abs(s.speed);
+    s.offRoad = Math.abs(near.lateralDist) > halfW;
 
     // ---- wrong-way detection ----
     const headingSin = Math.sin(s.heading);
@@ -348,15 +363,25 @@ export class KartPhysics {
       s.speed = approach(s.speed, 0, 20 * dt);
       s.drifting = false;
     } else {
+      // Bicycle model: the front-wheel angle asks for yaw rate v/L·tan(δ). The
+      // lock narrows with speed (as a driver's hands do), and the tyres can
+      // only supply gripLateral of sideways acceleration (a = v·ω), so the
+      // yaw rate is capped at grip / v. Anything asked beyond that is
+      // understeer: the kart runs wide of the request and scrubs speed.
       const speed01 = Math.min(1, speedAbs / P.maxSpeed);
-      let rate = P.steerSpeed + (P.steerSpeedLow - P.steerSpeed) * (1 - speed01);
-      if (s.drifting) rate = P.driftSteer;
-      if (kart._airTime > 0.05) rate *= P.airControl * 0.4; // reduced control airborne
+      const lock = P.maxSteerAngle + (P.minSteerAngle - P.maxSteerAngle) * speed01;
       const steerSign = s.speed < 0 ? -1 : 1;
-      const steerEff = input.steer * steerSign * (speedAbs > 0.25 ? 1 : 0.3);
+      let yawRate = (speedAbs / P.wheelbase) * Math.tan(input.steer * lock) * steerSign;
+      if (kart._airTime > 0.05) yawRate *= P.airControl * 0.4; // reduced control airborne
+      let grip = P.gripLateral * (s.offRoad ? P.gripOffRoad : 1);
+      if (s.drifting) grip *= P.driftGripBonus;
+      const maxYaw = grip / Math.max(speedAbs, 1);
+      const demand = Math.abs(yawRate);
+      kart._understeer = demand > maxYaw ? 1 - maxYaw / demand : 0;
+      if (demand > maxYaw) yawRate = Math.sign(yawRate) * maxYaw;
       // NOTE: heading += would turn LEFT on positive steer (Three.js right-hand
       // rule: forward +Z, right = -X). Invert so +steer = right turn.
-      s.heading -= steerEff * rate * dt;
+      s.heading -= yawRate * dt;
       // gentle pull toward the path tangent (forgiving handling, helps AI)
       const tanAngle = Math.atan2(tan.x, tan.z);
       // Off-road: weaken the pull so the player can steer BACK to the track
@@ -403,64 +428,37 @@ export class KartPhysics {
         if (Math.abs(px) > 2.2) continue;
         // leader must be moving (so drafting means catching up)
         if (other.state.speed < 2) continue;
+        // Real slipstream is worth a few km/h, not a slingshot.
         s.draft = true;
-        target *= 1.08;
+        target *= 1.04;
         break;
       }
     }
-    // Draft-exit boost (audit v4 LOW / v5 #3): leaving a wake gives a real
-    // slingshot (600ms) with a cooldown so it can't be chained.
-    if (!s.draft && kart._wasDrafting && !s.spinOut) {
-      const now = raceManager ? raceManager.elapsed : 0;
-      if (!kart._lastDraftExit || now - kart._lastDraftExit > 3) {
-        // AUDIT r5: draft exit-kick is PLAYER-only — AI trains used to chain
-        // free 600ms boosts, quietly widening the rubber band.
-        if (!kart.isPlayer) {
-          kart._wasDrafting = false;
-        } else {
-          kart._lastDraftExit = now;
-          kart.applyBoost(600);
-          kart._onDraftExit?.();
-        }
-      }
-    }
-    kart._wasDrafting = s.draft;
-    s.offRoad = Math.abs(near.lateralDist) > halfW;
-    // AUDIT r5: boost ignores terrain slowdown (MK8D) — a drift-boost/star
-    // carry over grass no longer gets cut by the 0.45× off-road factor.
-    if (s.offRoad && !s.boost && s.turboBoostMs <= 0) target *= T.offRoadMaxSpeedFactor;
-    // AUDIT r3: off-road exit kick — a grass dive that's actually held pays
-    // a small recovery boost back on tarmac (risky lines now have a payoff).
-    if (s.offRoad) {
-      kart._offRoadT = (kart._offRoadT || 0) + dt;
-    } else if (kart._offRoadT > 0) {
-      if (kart._offRoadT >= 0.7) {
-        const kick = Math.min(360, 120 + kart._offRoadT * 160); // 0.7s→232ms, 1.5s→360ms
-        kart.applyBoost(kick);
-        kart._onGrassExit?.();
-      }
-      kart._offRoadT = 0;
-    }
-    if (s.spinOut) target = 0;
 
-    const maxAbs = Math.abs(target);
     if (!s.spinOut) {
-      // AUDIT r5: clamp throttle to 1.0 — AI easing passed >1 (up to 1.35)
-      // and KartPhysics scales accel by it, inflating the comeback.
+      // AUDIT r5: clamp throttle to 1.0 — AI easing passed >1 (up to 1.35).
       const thr = Math.min(1, Math.max(0, input.throttle || 0));
-      // AUDIT r11-F1 (code + game-design audits): the over-target approach
-      // step (14*dt) is SMALLER than full accel (26*dt), so full-throttle
-      // speed crept PAST maxSpeed indefinitely (sim: 86-113 m/s vs 42) —
-      // the cap leaked, the rubber-band/coin ceiling (cruiseSpeed ≤ ~47) was
-      // meaningless and rivals became rockets. Gate accel on the cap: once
-      // at/over target speed, only friction + approach act (hard ceiling).
-      if (thr > 0.02 && Math.abs(s.speed) < maxAbs) s.speed += P.acceleration * dt * Math.max(0.15, thr); // AI corner-lift 0.3/0.8 scales accel (audit F3)
-      if (input.brake) s.speed -= P.braking * dt;
-    }
-    const fr = P.friction * (s.offRoad ? 1.8 : 1);
-    s.speed -= Math.sign(s.speed) * Math.min(speedAbs, fr * dt);
-    if (Math.abs(s.speed) > maxAbs) {
-      s.speed = approach(s.speed, Math.sign(s.speed) * maxAbs, (s.offRoad ? 22 : 14) * dt);
+      const brake = Math.min(1, Math.max(0, Number(input.brake) || 0));
+      // Aero drag coefficient solved so thrust = resistance exactly at the
+      // target speed: top speed lands on maxSpeed / cruiseSpeed / boostSpeed,
+      // and dropping out of a boost decelerates naturally (no hard clamp).
+      const vTop = Math.max(5, Math.abs(target));
+      const kDrag = Math.max(0, (P.enginePower / vTop - P.rollingResistance) / (vTop * vTop));
+      let accel = 0;
+      if (thr > 0.02) {
+        accel += thr * Math.min(P.launchAccel, P.enginePower / Math.max(speedAbs, 1));
+      } else if (speedAbs > 0.1) {
+        accel -= Math.sign(s.speed) * P.engineBraking;
+      }
+      if (brake > 0) accel -= s.speed > 0.5 ? P.braking * brake : P.reverseAccel * brake;
+      // Gravity along the road: the sample slope is rise/run along the track
+      // direction; project it onto the kart's heading.
+      accel -= GRAVITY * (near.slope || 0) * (Math.sin(s.heading) * tan.x + Math.cos(s.heading) * tan.z);
+      s.speed += accel * dt;
+      // Resistances always oppose motion and never flip its sign.
+      let resist = P.rollingResistance + (s.offRoad ? P.offRoadDrag : 0) + kDrag * s.speed * s.speed;
+      if (s.speed > 0) resist += (kart._understeer || 0) * P.scrubDecel + (s.drifting ? P.driftScrub : 0);
+      s.speed -= Math.sign(s.speed) * Math.min(Math.abs(s.speed), resist * dt);
     }
     if (s.speed < P.reverseSpeed) s.speed = P.reverseSpeed;
 

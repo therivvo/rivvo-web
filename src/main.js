@@ -23,7 +23,7 @@ import { ParticleSystem } from './render/Particles.js';
 import { SkidMarks } from './effects/SkidMarks.js';
 import { updateWind } from './render/Materials.js'; // PREMIUM PASS: vento na grama/palmeiras
 import { Menu } from './ui/Menu.js';
-import { HUD } from './ui/HUD.js';
+import { HUD, MS_TO_KMH } from './ui/HUD.js';
 import { TouchControls } from './ui/TouchControls.js';
 import { signedAngle } from './entities/PowerUp.js'; // steer-assist steering math (shared with AIController)
 import { createBootOverlay } from './ui/BootOverlay.js';
@@ -750,7 +750,7 @@ function applyDifficulty() {
   // 150cc — MAX_KMH was a load-time constant). +10% headroom above top speed.
   if (typeof hud !== 'undefined' && hud && hud.setMaxKmh) {
     // 1.25 headroom: CC scale + coin bonus (+10%) + boost spikes
-    hud.setMaxKmh(CONFIG.physics.maxSpeed * 2.4 * 1.25);
+    hud.setMaxKmh(CONFIG.physics.maxSpeed * MS_TO_KMH * 1.25);
   }
 }
 

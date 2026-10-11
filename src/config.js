@@ -28,27 +28,45 @@ export const CONFIG = {
   },
 
   physics: {
-    maxSpeed: 42,
-    rubberBandCap: 0.12, // AI total speed ceiling over player maxSpeed (cap coins+rubber combined)
-    boostSpeed: 64,
-    reverseSpeed: -12,
-    acceleration: 26,
-    braking: 40,
-    steerSpeed: 1.9, // rad/s at full speed (was 2.6 — too jerky)
-    steerSpeedLow: 3.2, // rad/s when slow
-    driftSteer: 3.6,
-    driftMinSpeed: 12,
+    // REALISM PASS: real 125cc racing-kart numbers (kart + driver ≈ 175 kg).
+    // All speeds in m/s, accelerations in m/s². The HUD shows m/s × 3.6.
+    maxSpeed: 33, // 119 km/h top speed on the flat
+    rubberBandCap: 0.06, // AI total speed ceiling over player maxSpeed (cap coins+rubber combined)
+    boostSpeed: 37, // +12% — boosts are a real push, not a rocket
+    reverseSpeed: -4,
+    // Longitudinal: thrust = min(launchAccel, enginePower / v); resistance =
+    // rollingResistance + aero drag. The drag coefficient is solved from the
+    // current target speed (KartPhysics), so top speed lands exactly on it.
+    enginePower: 210, // W/kg (~37 kW / 175 kg) → 0-100 km/h in ~3.8 s
+    launchAccel: 8.5, // rear-tyre traction limit off the line (~0.87 g)
+    rollingResistance: 0.15,
+    engineBraking: 0.8, // extra decel with the throttle closed
+    braking: 12.5, // ~1.3 g full brake
+    reverseAccel: 3,
+    // Lateral: steering asks for a yaw rate (bicycle model, speed-sensitive
+    // lock); the tyres cap it at gripLateral / v. Cornering speed is therefore
+    // √(grip × radius): a 20 m hairpin ≈ 73 km/h, a 50 m sweeper ≈ 115 km/h.
+    wheelbase: 1.05, // m
+    maxSteerAngle: 0.45, // rad (~26°) front-wheel lock at walking pace
+    minSteerAngle: 0.1, // rad (~6°) lock at top speed
+    gripLateral: 20.5, // ~2.1 g on dry tarmac with slicks
+    gripOffRoad: 0.55, // grip multiplier on grass / sand
+    offRoadDrag: 5.5, // extra rolling resistance off the tarmac
+    scrubDecel: 7, // speed lost when steering past the grip limit (understeer)
+    // Powerslide: a little more rotation than grip allows, paid for in speed.
+    driftGripBonus: 1.12,
+    driftScrub: 2.0,
+    driftMinSpeed: 9,
     driftChargeRate: 0.55, // 0..1 per second while drifting (audit r3: 1.0 made
     // tier sparks hit at 0.2-0.33s and auto-fire at ~1.3s — 2× faster than
     // MK8D's 1.1/1.7/2.2s sparks / 2.6s auto; chaining minis was free)
     driftReleaseBoost: 0.75, // mini-boost if charge >= this
-    friction: 3.2,
-    lateralGrip: 8.5,
-    gravity: -32,
-    kartMass: 1.0,
+    lateralGrip: 8.5, // decay rate of the sideways slide velocity
+    gravity: -9.81,
     collisionBounce: 0.35,
     airControl: 1.2,
   },
+
 
   kart: {
     chassisLength: 1.7,
@@ -79,9 +97,10 @@ export const CONFIG = {
     roadWidth: 9,
     roadEdge: 0.9, // grass margin width
     curveSmoothness: 40, // segments per curve
-    offRoadMaxSpeedFactor: 0.45,
-    // Turbo pad cluster centers (normalized path positions). KartPhysics
-    // triggers a boost when a kart's progress01 is within 0.015 of one.
+    // Turbo pad cluster centers (normalized path positions; per-track values
+    // come from tracks.js). KartPhysics triggers a boost when a kart is within
+    // turboPadWindow metres of one — metres, so long tracks don't widen it.
+    turboPadWindow: 6,
     // AUDIT (city redesign, 2026-08-11): 0.72 sat on the lower-right corner
     // apex of the new '2' layout (boost mid-corner shoves karts wide);
     // 0.78 is mid-bottom-straight.

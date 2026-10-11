@@ -31,8 +31,10 @@ const ITEM_NAMES = {
   lightning: 'Lightning',
 };
 
-/** km/h at the top of the gauge: ~42 m/s * 2.4 ≈ 100 km/h. */
-const MAX_KMH = Math.round(CONFIG.physics.maxSpeed * 2.4);
+/** Physics speeds are real m/s; the gauge shows true km/h. */
+export const MS_TO_KMH = 3.6;
+/** km/h at the top of the gauge (top speed + 25% headroom for boosts). */
+const MAX_KMH = Math.round(CONFIG.physics.maxSpeed * MS_TO_KMH * 1.25);
 const ARC_RADIUS = 62;
 const ARC_LENGTH = 1.5 * Math.PI * ARC_RADIUS; // 270° MK8-style dial
 const COUNTDOWN_NUMBER_MS = 1200; // safety auto-hide for numbers
@@ -784,7 +786,7 @@ export class HUD {
 
   /** @param {number} speed kart speed in m/s (may be negative while reversing). */
   setSpeed(speed) {
-    const kmh = Math.max(0, Math.min(speed * 2.4, this._maxKmh));
+    const kmh = Math.max(0, Math.min(speed * MS_TO_KMH, this._maxKmh));
     const rounded = Math.round(kmh);
     if (this.speedValueEl.textContent !== String(rounded)) {
       this.speedValueEl.textContent = String(rounded);

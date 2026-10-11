@@ -1669,7 +1669,8 @@ export class Kart {
     // 0.88×) — coercing to boolean killed the AI's designed corner behavior
     // and the "ease off when ahead" half of rubber-banding (audit F3).
     if (throttle !== undefined) this._controls.throttle = THREE.MathUtils.clamp(throttle, 0, 1);
-    if (brake !== undefined) this._controls.brake = !!brake;
+    // Brake is analog 0..1 (AI trail-braking); keyboard booleans map to 0/1.
+    if (brake !== undefined) this._controls.brake = THREE.MathUtils.clamp(Number(brake) || 0, 0, 1);
     if (drift !== undefined) this._controls.drift = !!drift;
     if (useItem !== undefined) this._controls.useItem = !!useItem;
     if (swapItem !== undefined) this._controls.swapItem = !!swapItem;
