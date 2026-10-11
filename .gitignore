@@ -1,0 +1,33 @@
+node_modules
+node_modules/
+dist/
+.DS_Store
+*.log
+*.bak
+scorecard-result.json
+# Bubble Bumper: revisões históricas ficam em disco, fora do git
+concept-art/the-bubble-bumper/modeling/bubble-bumper-v0*.blend
+concept-art/the-bubble-bumper/modeling/renders-v0*/
+concept-art/the-bubble-bumper/modeling/renders/
+concept-art/the-bubble-bumper/modeling/v0*-board.png
+concept-art/the-bubble-bumper/modeling/v0*-review-board.png
+concept-art/the-bubble-bumper/modeling/__pycache__/
+concept-art/the-bubble-bumper/modeling/*.pyc
+concept-art/the-bubble-bumper/modeling/build_bubble_bumper_v0*.py
+concept-art/the-bubble-bumper/modeling/v0*.py
+concept-art/the-bubble-bumper/modeling/*.json
+# canonicos: NAO ignorar (calibracao/contratos do modelo)
+!concept-art/the-bubble-bumper/modeling/BASE_PARAMS.json
+!concept-art/the-bubble-bumper/modeling/contracts/*.json
+!concept-art/the-bubble-bumper/modeling/builder/*.json
+concept-art/the-bubble-bumper/modeling/renders-candidate*/
+concept-art/the-bubble-bumper/modeling/renders-v*/
+concept-art/the-bubble-bumper/modeling/render_bubble_bumper*.py
+# intermediárias do loop de modelagem (mantidas em disco)
+concept-art/the-bubble-bumper/modeling/v2-envelope/W10*.png
+concept-art/the-bubble-bumper/modeling/v2-envelope/W11*.png
+concept-art/the-bubble-bumper/modeling/v2-envelope/W11*.json
+concept-art/the-bubble-bumper/modeling/v2-envelope/w10*-board.png
+concept-art/the-bubble-bumper/modeling/v2-envelope/*-board.png
+concept-art/the-bubble-bumper/reviews/
+
