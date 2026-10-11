@@ -15,6 +15,44 @@ import { headingVector, progressScore, signedAngle, PowerUpType, kartPosition } 
 /** Full steering lock reached at this heading error (radians). */
 const STEER_FULL_AT = 0.7;
 
+/**
+ * Racing-line speed profile for a closed centerline (cached per centerline).
+ * 1) corner limit at each sample: v = √(grip · R · gripUse), R from the
+ *    circumradius of samples ±k apart (~6 m chords);
+ * 2) braking points: walking backwards, v[i] ≤ √(v[i+1]² + 2·a·ds) with
+ *    a = braking · brakeUse — so the profile starts slowing early enough to
+ *    make every corner. Two laps of the backward pass settle the seam.
+ */
+const _profileCache = new WeakMap();
+function speedProfile(centerline, spacing) {
+  let prof = _profileCache.get(centerline);
+  if (prof) return prof;
+  const n = centerline.length;
+  const k = Math.max(1, Math.round(6 / spacing));
+  const grip = CONFIG.physics.gripLateral * CONFIG.ai.gripUse;
+  const aBrake = CONFIG.physics.braking * CONFIG.ai.brakeUse;
+  prof = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = centerline[(i - k + n) % n];
+    const b = centerline[i];
+    const c = centerline[(i + k) % n];
+    const ab = Math.hypot(b.x - a.x, b.z - a.z);
+    const bc = Math.hypot(c.x - b.x, c.z - b.z);
+    const ca = Math.hypot(a.x - c.x, a.z - c.z);
+    const cross = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
+    const R = cross > 1e-6 ? (ab * bc * ca) / (2 * cross) : Infinity;
+    prof[i] = Math.sqrt(grip * R);
+  }
+  for (let pass = 0; pass < 2 * n; pass++) {
+    const i = n - 1 - (pass % n);
+    const next = prof[(i + 1) % n];
+    const limit = Math.sqrt(next * next + 2 * aBrake * spacing);
+    if (prof[i] > limit) prof[i] = limit;
+  }
+  _profileCache.set(centerline, prof);
+  return prof;
+}
+
 export class AIController {
   constructor(kart, track, raceManager, aiIndex = 0) {
     this.kart = kart;
@@ -125,8 +163,12 @@ export class AIController {
     // kart's nearest centerline sample.
     let target;
     const near = this._findNearest(pos);
+    const speed = st.speed ?? 0;
     if (near >= 0 && this.centerline) {
-      const look = Math.max(1, Math.round(CONFIG.ai.steerPredictAhead / this.spacing));
+      // Pure-pursuit look-ahead grows with speed (a fixed 10 m is only 0.3 s
+      // at top speed — too late to settle into a corner).
+      const lookM = Math.max(CONFIG.ai.steerPredictAhead, Math.abs(speed) * CONFIG.ai.steerLookTime);
+      const look = Math.max(1, Math.round(lookM / this.spacing));
       const idx = (near + look) % this.centerline.length;
       target = this.centerline[idx];
       // Lateral lane offset: hold a personal racing line (audit v4 F3).
@@ -161,7 +203,7 @@ export class AIController {
     // steer DECREASES heading (turns right). Target right of kart → err > 0
     // → positive steer. (Was -err before the steering-sign fix.)
     // Handling stat scales steering authority (audit F2 difficulty curve).
-    const hGain = 0.85 + (this.stats?.handling || 7) / 10 * 0.3 + (this.track?.isCity ? 0.15 : 0);
+    const hGain = 0.85 + (this.stats?.handling || 7) / 10 * 0.3;
     let steer = THREE.MathUtils.clamp((err / STEER_FULL_AT) * hGain, -1, 1);
 
     // Hazard avoidance (audit r3: CPUs were free banana/shell fodder — no
@@ -191,18 +233,27 @@ export class AIController {
     let brake = 0;
     let drift = false;
     const absErr = Math.abs(err);
-    // NOTE: never set brake for slow-down — in this physics brake = reverse.
-    // Slowing is handled by easing the throttle; the path-pull turns the kart.
-    if (absErr > 0.9) {
-      // Hairpin: crawl while the damp-pull rotates us toward the path.
-      throttle = 0.3;
-    } else if (absErr > 0.5) {
-      // Soft corner: lift a bit.
-      throttle = 0.8;
+    // Speed from the racing-line profile, read a reaction time ahead. Above
+    // it: brake in proportion to the excess (brake only slows while rolling
+    // forward — reverse needs a near-stop). Below it: throttle to close in.
+    if (near >= 0 && this.centerline) {
+      const prof = speedProfile(this.centerline, this.spacing);
+      const ahead = Math.round((Math.max(0, speed) * 0.25) / this.spacing);
+      const vTarget = prof[(near + ahead) % prof.length];
+      const over = speed - vTarget;
+      if (over > 0.5) {
+        throttle = 0;
+        brake = THREE.MathUtils.clamp(over / 3, 0.2, 1);
+      } else {
+        throttle = THREE.MathUtils.clamp(0.5 - over * 0.5, 0, 1);
+      }
     }
-    if (this.track?.isCity && absErr > 0.35) throttle = Math.min(throttle, 0.72);
+    // Way off the line (after a shove): crawl while the steering recovers.
+    if (absErr > 0.9) {
+      throttle = Math.min(throttle, 0.3);
+      brake = 0;
+    }
 
-    const speed = st.speed ?? 0;
     if (speed < -0.5) {
       // Reversing (after a collision) — throttle FORWARD to exit reverse.
       // (brake would accelerate backwards toward reverseSpeed in this physics.)
@@ -240,28 +291,24 @@ export class AIController {
       let chaseBoost = 0;
       if (rival && rival !== player) {
         const dr = progressScore(rival) - progressScore(kart); // >0 → behind a rival
-        if (dr > 0.02 && dr < 1) chaseBoost = Math.min(0.06, dr * 0.25);
+        if (dr > 0.02 && dr < 1) chaseBoost = Math.min(CONFIG.physics.rubberBandCap / 2, dr * 0.25);
       }
       if (d > 0.03) {
-        const boost = Math.min(0.12, d * 0.3); // audit v4: capped +12% (was +22% — felt like cheating)
-        kart.cruiseSpeed = CONFIG.physics.maxSpeed * (1 + Math.min(boost + chaseBoost, 0.12)) * statScale;
+        const boost = Math.min(CONFIG.physics.rubberBandCap, d * 0.3); // capped by rubberBandCap
+        kart.cruiseSpeed = CONFIG.physics.maxSpeed * (1 + Math.min(boost + chaseBoost, CONFIG.physics.rubberBandCap)) * statScale;
       } else {
         kart.cruiseSpeed = CONFIG.physics.maxSpeed * (1 + chaseBoost) * statScale;
       }
-      throttle = THREE.MathUtils.clamp(throttle * (1 + factor), 0, 1.35);
+      // Rubber band shapes the straights only — never the corner speeds.
+      if (brake === 0) throttle = THREE.MathUtils.clamp(throttle * (1 + factor), 0, 1);
     }
 
-    if (this.track?.isCity) {
-      const cornerCap = absErr > 0.35 ? 0.78 : 0.88;
-      kart.cruiseSpeed = Math.min(kart.cruiseSpeed || CONFIG.physics.maxSpeed, CONFIG.physics.maxSpeed * cornerCap);
-    }
-
-    // Drift style through committed corners (only while racing).
-    // Accel stat raises the throttle floor → eager starters pull away (F2).
-    const aGain = 0.6 + (this.stats?.accel || 7) / 10 * 0.5;
-    if (!finished && absErr > 0.55 && speed > CONFIG.physics.driftMinSpeed) {
+    // Accel stat: eager drivers squeeze the throttle harder out of corners.
+    const aGain = 0.85 + (this.stats?.accel || 7) / 10 * 0.15;
+    throttle = Math.min(1, throttle * aGain);
+    // Powerslide only through committed corners where we're not braking.
+    if (!finished && brake === 0 && absErr > 0.55 && speed > CONFIG.physics.driftMinSpeed) {
       drift = true;
-      throttle = this.track?.isCity ? 0.72 : Math.max(throttle * aGain, 1);
     }
 
     kart.setControls?.({ steer, throttle, brake, drift, useItem: false });

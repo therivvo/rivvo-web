@@ -141,7 +141,12 @@ export const CONFIG = {
   ai: {
     rubberBandFactor: 0.5,
     targetSpeedError: 8,
-    steerPredictAhead: 10.0, // AUDIT F3: 6m was 143ms at max speed — too short for clean cornering on the tight city circuit (heading err dropped 16->6 deg); 10m keeps turn-in early without over-rotating.
+    steerPredictAhead: 10.0, // minimum steering look-ahead (m)
+    steerLookTime: 0.45, // look-ahead grows with speed: max(steerPredictAhead, v * this)
+    // Racing-line speed profile (AIController): corner speed √(grip·R·gripUse),
+    // braking points from brakeUse × CONFIG.physics.braking. <1 = safety margin.
+    gripUse: 0.9,
+    brakeUse: 0.8,
     itemUseChancePerSec: 0.5,
     crashRecoverMs: 500, // AI re-grips 0.5s after a spin ends (was 1200: long idle)
   },
