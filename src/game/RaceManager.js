@@ -293,6 +293,18 @@ export class RaceManager {
       const len = track.length || 500;
       this.centerlineSpacing = Math.max(1.5, len / track.waypoints.length);
     }
+    // Out-of-bounds box for the kart rescue: the track's own extent plus a
+    // 40 m run-off margin (was a fixed ±95 × ±62 sized for the old loops).
+    this.worldBounds = { x: 95, z: 62 };
+    if (this.centerline && this.centerline.length) {
+      let mx = 0;
+      let mz = 0;
+      for (const p of this.centerline) {
+        mx = Math.max(mx, Math.abs(p.x));
+        mz = Math.max(mz, Math.abs(p.z));
+      }
+      this.worldBounds = { x: mx + 40, z: mz + 40 };
+    }
 
     this.aiControllers = (aiKarts || []).map((k, i) => new AIController(k, track, this, i));
 
@@ -427,6 +439,13 @@ export class RaceManager {
     }
   }
 
+  /** Point a rescued kart's physics lattice index at its race progress
+   *  (the lattice size scales with track length — see KartPhysics). */
+  _reseedLattice(kart, progress01) {
+    const n = kart._samples?.N || 192;
+    kart._sampleIndex = Math.min(n - 1, Math.max(0, Math.round(progress01 * n)));
+  }
+
   /** Off-track rescue (audit r4 — the Lakitu): a kart shoved into grass
    *  crawls at 45% with no way back. After 2s stuck off-road and slow,
    *  respawn it on its own progress point of the racing line with a hop. */
@@ -443,7 +462,8 @@ export class RaceManager {
       // drive away forever (SIM seed 2918: z went to -126, v=4.6 never
       // triggered the <3 m/s stuck rescue). Any kart beyond the world bounds
       // gets the Lakitu IMMEDIATELY (1s grace), no speed threshold.
-      const oob = Math.abs(st.position?.x || 0) > 95 || Math.abs(st.position?.z || 0) > 62;
+      const wb = this.worldBounds || { x: 95, z: 62 };
+      const oob = Math.abs(st.position?.x || 0) > wb.x || Math.abs(st.position?.z || 0) > wb.z;
       if (oob) {
         kart._stuckT = (kart._stuckT || 0) + dt;
         if (kart._stuckT >= 1) {
@@ -455,9 +475,7 @@ export class RaceManager {
             st.speed = 0;
             st.vY = 3.5;
             st.spinOut = false;
-            if (typeof st.progress01 === 'number') {
-              kart._sampleIndex = Math.min(191, Math.max(0, Math.round(st.progress01 * 192)));
-            }
+            if (typeof st.progress01 === 'number') this._reseedLattice(kart, st.progress01);
             kart._stuckT = 0;
             // R25: same MK8D semantics as the stuck rescue below — a rescued
             // kart shouldn't keep a free shield/shell, and the player gets
@@ -481,10 +499,8 @@ export class RaceManager {
             // AUDIT r11: re-seed the physics nearest-sample index so the
             // rescue doesn't leave a stale lattice (progress01 glitch → AI
             // steering anchor wobbles). progress01 is arc-length fraction →
-            // index on the 192-sample arc-uniform lattice.
-            if (typeof st.progress01 === 'number') {
-              kart._sampleIndex = Math.min(191, Math.max(0, Math.round(st.progress01 * 192)));
-            }
+            // index on the arc-uniform physics lattice.
+            if (typeof st.progress01 === 'number') this._reseedLattice(kart, st.progress01);
             st.vY = 3.5; // the little pop the Lakitu gives you
             st.spinOut = false;
             kart._stuckT = 0;
