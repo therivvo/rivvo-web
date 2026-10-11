@@ -1,0 +1,30 @@
+{
+  "revision":"R81",
+  "root":"HeroKartV2",
+  "nodes":[
+    {"name":"HeroKartV2","type":"ROOT","children":["LOD0","LOD1","LOD2","COLLISION","PRESENTATION"]},
+    {"name":"LOD0","type":"COLLECTION","children":["CockpitTub","SeatShell","DriverTorso","DriverCollar","HelmetShell","HelmetVisor","SteeringPivot","SteeringRing","WindshieldLens","WindshieldMount_L","WindshieldMount_R"]},
+    {"name":"CockpitTub","type":"MESH","parent":"LOD0","immutable":true},
+    {"name":"SeatShell","type":"MESH","parent":"CockpitTub","socket":"SeatSocket"},
+    {"name":"DriverTorso","type":"MESH","parent":"SeatShell","pivot":"DriverTorsoPivot"},
+    {"name":"DriverCollar","type":"MESH","parent":"DriverTorso","clearance_to_cockpit_m":0.025},
+    {"name":"HelmetShell","type":"MESH","parent":"DriverCollar","children":["HelmetVisor","HelmetVisorPivot_L","HelmetVisorPivot_R"],"wraps":["temple","jaw","nape"]},
+    {"name":"HelmetVisor","type":"MESH","parent":"HelmetShell","pivots":["HelmetVisorPivot_L","HelmetVisorPivot_R"]},
+    {"name":"HelmetVisorPivot_L","type":"EMPTY_SOCKET","parent":"HelmetShell","axis":"X"},
+    {"name":"HelmetVisorPivot_R","type":"EMPTY_SOCKET","parent":"HelmetShell","axis":"X"},
+    {"name":"SteeringPivot","type":"EMPTY_PIVOT","parent":"CockpitTub","axis":"X","range_deg":[-35,35]},
+    {"name":"SteeringRing","type":"MESH","parent":"SteeringPivot","shape":"D","hands_deg":[150,30]},
+    {"name":"SteeringHub","type":"MESH","parent":"SteeringPivot","diameter_m":0.06},
+    {"name":"SteeringColumn","type":"MESH","parent":"SteeringPivot","coaxial":true},
+    {"name":"WindshieldLens","type":"MESH","parent":"CockpitTub","curved":true,"ahead_of":"SteeringRing"},
+    {"name":"WindshieldMount_L","type":"MESH","parent":"CockpitTub","socket":"WindshieldSocket_L"},
+    {"name":"WindshieldMount_R","type":"MESH","parent":"CockpitTub","socket":"WindshieldSocket_R"},
+    {"name":"WindshieldSocket_L","type":"EMPTY_SOCKET","parent":"CockpitTub","axis":"+X","clearance_m":0.025},
+    {"name":"WindshieldSocket_R","type":"EMPTY_SOCKET","parent":"CockpitTub","axis":"-X","clearance_m":0.025},
+    {"name":"LOD1","type":"COLLECTION","preserve_silhouette":true},
+    {"name":"LOD2","type":"COLLECTION","preserve_silhouette":true},
+    {"name":"COLLISION","type":"COLLECTION","render":false},
+    {"name":"PRESENTATION","type":"COLLECTION","render":false}
+  ],
+  "invariants":["all wheel pivots unchanged from R80","all body objects outside cockpit scope unchanged","WindshieldSocket_L/R parent CockpitTub","SteeringRing parent SteeringPivot","HelmetVisor has two pivots","driver clearances >=0.025m"]
+}

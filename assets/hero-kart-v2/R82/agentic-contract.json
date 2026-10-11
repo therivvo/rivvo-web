@@ -1,0 +1,40 @@
+{
+  "asset_goal": "Revisão local do cockpit/driver do Super Kart Hero Kart V2, preservando a carroceria e o melhor artefato R80.",
+  "revision": "R81",
+  "style": "stylized AAA arcade kart; controlled curves, authored local geometry; no primitive-only replacement",
+  "unit_system": "METRIC",
+  "meters_per_unit": 1.0,
+  "forward_axis": "-Y",
+  "up_axis": "+Z",
+  "scope": {"allowed_objects": ["LOD0_Cockpit*", "LOD0_Driver*", "LOD0_Helmet*", "LOD0_Steering*", "LOD0_Windshield*"], "forbidden": ["runtime", "HUD", "gameplay", "infra-config", "whole-asset regeneration"]},
+  "baseline": {"revision": "R80", "blend": "assets/hero-kart-v2/R80/hero-kart-v2-R80.blend", "preserve": true},
+  "dimensions_m": {"length": 2.35, "width_tire_outer": 1.62, "height_body": 0.82, "height_with_driver": 1.42, "wheelbase": 1.47, "front_track": 1.34, "rear_track": 1.38, "ground_clearance": 0.12, "cockpit_opening_width_target": [0.62, 0.68], "windshield_width_ratio_to_cockpit": [0.72, 0.78]},
+  "P0": [
+    {"id":"P0-cockpit-integration","requirement":"driver hips/torso/head are inside a deep cockpit volume; visible neck/collar and no torso-bodywork intersection","proof_views":["beauty","profile","clearance"]},
+    {"id":"P0-windshield-anchoring","requirement":"curved low windshield is in front of steering wheel, mounted at two side sockets, rear edge at least 0.08m ahead of cockpit rim rear edge, lateral wrist clearance at least 0.025m","proof_views":["beauty","profile","top","clearance"]},
+    {"id":"P0-helmet-shell","requirement":"continuous helmet shell wraps temple/jaw/nape, visor has two explicit pivots, integrated chin and separate collar","proof_views":["beauty","profile","rear","clearance"]},
+    {"id":"P0-steering-function","requirement":"D-shaped continuous ring with coaxial hub/column; three spokes; hands at 150 and 30 degrees; no plate crossing hub","proof_views":["beauty","profile","top","clearance"]},
+    {"id":"P0-no-regression","requirement":"body, wheels, rear identity and existing mounts remain unchanged outside allowed local cockpit objects","proof_views":["beauty","rear","top"]}
+  ],
+  "P1": ["harness straps follow chest volume", "cockpit rim rolled 0.035-0.055m", "seat shell/bolsters/pedal shelf readable", "panel seams and fasteners", "toon material hierarchy"],
+  "components": [
+    {"name":"CockpitTub", "parent":null, "role":"existing primary body; immutable baseline"},
+    {"name":"SeatShell", "parent":"CockpitTub", "role":"deep seat and bolsters"},
+    {"name":"DriverTorso", "parent":"SeatShell", "role":"reclined 12-degree torso envelope"},
+    {"name":"DriverCollar", "parent":"DriverTorso", "role":"separate neck/collar"},
+    {"name":"HelmetShell", "parent":"DriverCollar", "role":"continuous head protection shell"},
+    {"name":"HelmetVisor", "parent":"HelmetShell", "role":"curved visor"},
+    {"name":"SteeringPivot", "parent":"CockpitTub", "role":"coaxial pivot at wheel center"},
+    {"name":"SteeringRing", "parent":"SteeringPivot", "role":"D ring"},
+    {"name":"WindshieldLens", "parent":"CockpitTub", "role":"low curved deflector"},
+    {"name":"WindshieldMount_L/R", "parent":"CockpitTub", "role":"two side mounts/sockets"}
+  ],
+  "relations": {"driver_inside_cockpit": true, "windshield_ahead_of_steering": true, "hands_grip_ring": true, "visor_pivoted_on_two_sides": true, "body_immutable_outside_scope": true},
+  "mounts": [{"name":"WindshieldMount_L","socket":"WindshieldSocket_L","parent":"CockpitTub"},{"name":"WindshieldMount_R","socket":"WindshieldSocket_R","parent":"CockpitTub"},{"name":"SteeringColumnMount","socket":"DashSteeringSocket","parent":"CockpitTub"}],
+  "sockets": [{"name":"WindshieldSocket_L","axis":"+X","clearance_m":0.025},{"name":"WindshieldSocket_R","axis":"-X","clearance_m":0.025},{"name":"HelmetVisorPivot_L","axis":"+X"},{"name":"HelmetVisorPivot_R","axis":"-X"},{"name":"SteeringAxis","axis":"+X/-X"}],
+  "pivots": [{"name":"SteeringPivot","location":"wheel center","axis":"X","rotation_range_deg":[-35,35]},{"name":"HelmetVisorPivot_L/R","location":"helmet temple sides","axis":"X"}],
+  "clearances_m": {"wrist_elbow_knee_min":0.025,"windshield_lateral_min":0.025,"windshield_rear_edge_ahead_of_cockpit_rim":0.08,"wheel_fender_target":[0.055,0.075]},
+  "proof_views": {"beauty":"front 3/4 identity and integration","profile":"windshield/driver depth and rear-edge clearance","top":"width, sockets and steering alignment","rear":"helmet nape/collar and kart rear non-regression","clearance":"driver/body/windshield/wheel clearance overlay"},
+  "technical_limits": {"LOD0_triangles":[38000,52000],"LOD1_triangles":[16000,22000],"LOD2_triangles":[5000,7500],"materials_max":5,"draw_calls_max":8,"uv_required":true,"manifold_required":true,"export":"glb","glb_max_bytes":3670016},
+  "gate_order":["contract","scene_graph","blockout_silhouette","single_local_revision","multi_view_critique","independent_verifier","technical_gate"]
+}

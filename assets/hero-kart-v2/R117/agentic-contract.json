@@ -1,0 +1,14 @@
+{
+  "asset_goal": "Hero Kart V2 game-ready authored vehicle",
+  "style": "low planted cartoon AAA arcade kart",
+  "unit_system": "METRIC",
+  "forward_axis": "-Y",
+  "up_axis": "+Z",
+  "revision": "R117",
+  "p0": ["continuous body shell", "functional seated driver", "steering column and two-handed grip", "attached windshield ahead of hands", "integrated rear aero/exhaust", "five proof views"],
+  "named_components": ["ContinuousLowerTub", "CockpitWell", "DriverRibcage", "HelmetShell", "DSteeringRing", "KartWindshieldLens", "IntegratedRearFender", "RearPowerSpine", "RearDiffuser", "CamberedRearWing"],
+  "invariants": {"windshield_mount_count": 4, "visor_pivot_count": 2, "steering_column_coaxial": true, "hand_grip_angles_deg": [150, 30], "no_runtime_integration": true},
+  "technical_limits": {"lod0_triangles": [38000, 52000], "lod1_triangles": [16000, 22000], "lod2_triangles": [5000, 7500], "lod0_materials_max": 5, "lod1_materials_max": 4, "lod2_materials_max": 3, "collision_triangles": [24, 48], "ngons": 0, "non_manifold_edges": 0, "uv_required": true},
+  "views": {"beauty": "overall identity", "profile": "side silhouette and windshield profile", "top": "plan/cockpit/left-right integration", "rear": "rear identity and aero", "clearance": "driver/steering/windshield separation"},
+  "export": "blocked until primary and Sol vision approve the same revision"
+}

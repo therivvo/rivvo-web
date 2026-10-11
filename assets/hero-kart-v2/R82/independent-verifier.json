@@ -1,0 +1,13 @@
+{
+  "revision": "R82",
+  "baseline": "R81",
+  "checks": {"scene_markers": true, "visual_p0_windshield": false, "visual_p0_clearance": false, "visual_no_regression": true},
+  "p0_fidelity": "0/2 visual P0 approved",
+  "regressions": [
+    {"id":"REG-R82-01","severity":"P0","view":"beauty/profile","object":"WindshieldDeflector_R82","observed":"low open arc reads as a handle over the hood and is too distant from the cockpit","next_experiment":"rebuild cockpit/deflector as an integrated structural module"},
+    {"id":"REG-R82-02","severity":"P0","view":"profile","object":"WindshieldDeflector_R82","observed":"deflector nearly disappears and does not form a coherent protective cockpit gesture","next_experiment":"use authored cowl-to-deflector transition, not a free tubular arc"}
+  ],
+  "verdict": "REJECTED_VISUAL_GATE_SOL",
+  "sol_session": "20260911_002254_78f5fd",
+  "visual_evidence": ["renders/beauty.png","renders/profile.png","renders/top.png","renders/rear.png","renders/clearance.png"]
+}

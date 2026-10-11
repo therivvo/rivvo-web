@@ -1,0 +1,55 @@
+{
+  "revision": "R81",
+  "baseline": "R80",
+  "checks": {
+    "revision_marker": true,
+    "local_windshield_present": true,
+    "two_mount_meshes": true,
+    "two_sockets": true,
+    "steering_pivot_present": true,
+    "driver_components_preserved": true,
+    "body_scope_marker": true,
+    "clearance_property": true,
+    "visual_p0_windshield": false,
+    "visual_p0_clearance": false,
+    "visual_no_regression": true
+  },
+  "p0_fidelity": "2/5 objective scene markers only; 0/5 visual P0 approved",
+  "regressions": [
+    {
+      "id": "REG-R81-01",
+      "severity": "P0",
+      "view": "beauty/clearance",
+      "object": "WindshieldLens_R81",
+      "expected": "low curved deflector ahead of wheel, cockpit readable",
+      "observed": "large opaque-looking wall dominates foreground and occludes wheel/pilot relationship",
+      "next_experiment": "reduce height to ~0.12m above cowl, move forward, use open rim/deflector arc instead of broad sheet"
+    },
+    {
+      "id": "REG-R81-02",
+      "severity": "P0",
+      "view": "profile",
+      "object": "WindshieldLens_R81",
+      "expected": "curved integrated lens with readable cowl mount",
+      "observed": "vertical rectangular plate silhouette; curvature not legible at this view",
+      "next_experiment": "use 3D arc in profile with lower edge tangent to cowl and two visible swept supports"
+    },
+    {
+      "id": "REG-R81-03",
+      "severity": "P0",
+      "view": "clearance",
+      "object": "WindshieldLens_R81",
+      "expected": ">=0.025m visible lateral/wrist clearance and unobstructed steering",
+      "observed": "visual clearance gate fails because sheet intersects projected steering/cockpit read",
+      "next_experiment": "clearance-only camera and transparent/open geometry before material pass"
+    }
+  ],
+  "verdict": "REJECTED_VISUAL_GATE",
+  "visual_evidence": [
+    "renders/beauty.png",
+    "renders/profile.png",
+    "renders/top.png",
+    "renders/rear.png",
+    "renders/clearance.png"
+  ]
+}

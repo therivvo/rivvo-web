@@ -1,0 +1,13 @@
+{
+  "revision": "R83",
+  "baseline": "R82",
+  "checks": {"scene_markers": true, "visual_p0_windshield": false, "visual_p0_clearance": false, "visual_no_regression": true},
+  "p0_fidelity": "0/2 visual P0 approved",
+  "regressions": [
+    {"id":"REG-R83-01","severity":"P0","view":"beauty/clearance","object":"WindshieldDeflector_R83","observed":"tubular U-shaped handle, not a convincing low aerodynamic deflector surface","next_experiment":"rebuild as authored integrated cockpit/deflector module"},
+    {"id":"REG-R83-02","severity":"P0","view":"profile","object":"WindshieldSupport_L/R_R83","observed":"supports read as added bars on top of cowl, without structural integration","next_experiment":"model cowl transition and mounts as one coherent authored assembly"}
+  ],
+  "verdict": "REJECTED_VISUAL_GATE_SOL",
+  "sol_session": "20260911_002547_6cd1ad",
+  "visual_evidence": ["renders/beauty.png","renders/profile.png","renders/top.png","renders/rear.png","renders/clearance.png"]
+}

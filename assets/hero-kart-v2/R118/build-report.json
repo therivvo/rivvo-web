@@ -1,0 +1,27 @@
+{
+  "revision": "R118",
+  "blender": "4.0.2",
+  "blend": "/opt/blender-runner/jobs/sk3d-r118/hero-kart-v2-R118.blend",
+  "windshield_mount_count": 4,
+  "windshield_width_m": 0.37,
+  "cockpit_width_reference_m": 0.62,
+  "windshield_width_ratio": 0.5967741935483871,
+  "windshield_rear_edge_y_m": -0.45,
+  "cockpit_rim_rear_y_m": 0.5,
+  "forearm_clearance_target_m": 0.07,
+  "steering_hub_diameter_m": 0.112,
+  "steering_hub_diameter_ratio_front_wheel": 0.19999999999999998,
+  "hand_grip_angles_deg": [
+    150,
+    30
+  ],
+  "no_runtime_integration": true,
+  "helmet_shell_wrap": true,
+  "visor_pivot_count": 2,
+  "steering_d_shape": true,
+  "steering_continuous_ring": true,
+  "steering_column_coaxial": true,
+  "no_windshield_over_driver": true,
+  "windshield_frame_continuous": true,
+  "windshield_integrated_cowl": true
+}

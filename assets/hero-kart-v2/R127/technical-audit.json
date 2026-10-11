@@ -1,0 +1,284 @@
+{
+  "asset": "Super Kart — Hero Kart V2",
+  "blend": "/tmp/sk3d-r127/assets/hero-kart-v2/R127/hero-kart-v2-R127.blend",
+  "blender": "4.0.2",
+  "units": "meters",
+  "forward": "-Y",
+  "up": "+Z",
+  "authored_from_scratch": true,
+  "collections": {
+    "LOD0": {
+      "mesh_objects": 479,
+      "vertices": 20748,
+      "faces": 24468,
+      "triangles": 39624,
+      "materials": [
+        "accent_emissive",
+        "paint_primary",
+        "paint_secondary",
+        "rubber_dark"
+      ],
+      "material_count": 4,
+      "ngons": 0,
+      "non_manifold_edges": 0,
+      "negative_volume_objects": [],
+      "non_unit_scale_objects": [],
+      "bounds": {
+        "min": [
+          -0.81,
+          -1.225,
+          -0.0201
+        ],
+        "max": [
+          0.81,
+          1.2205,
+          1.3593
+        ],
+        "dimensions_xyz_m": [
+          1.62,
+          2.4455,
+          1.3793
+        ]
+      }
+    },
+    "LOD1": {
+      "mesh_objects": 347,
+      "vertices": 11223,
+      "faces": 14122,
+      "triangles": 21098,
+      "materials": [
+        "accent_emissive",
+        "paint_primary",
+        "paint_secondary",
+        "rubber_dark"
+      ],
+      "material_count": 4,
+      "ngons": 0,
+      "non_manifold_edges": 0,
+      "negative_volume_objects": [],
+      "non_unit_scale_objects": [],
+      "bounds": {
+        "min": [
+          -0.81,
+          -1.225,
+          -0.018
+        ],
+        "max": [
+          0.81,
+          1.2206,
+          1.365
+        ],
+        "dimensions_xyz_m": [
+          1.62,
+          2.4456,
+          1.383
+        ]
+      }
+    },
+    "LOD2": {
+      "mesh_objects": 199,
+      "vertices": 3392,
+      "faces": 4474,
+      "triangles": 6028,
+      "materials": [
+        "paint_primary",
+        "paint_secondary",
+        "rubber_dark"
+      ],
+      "material_count": 3,
+      "ngons": 0,
+      "non_manifold_edges": 0,
+      "negative_volume_objects": [],
+      "non_unit_scale_objects": [],
+      "bounds": {
+        "min": [
+          -0.81,
+          -1.2212,
+          -0.018
+        ],
+        "max": [
+          0.81,
+          1.2203,
+          1.3635
+        ],
+        "dimensions_xyz_m": [
+          1.62,
+          2.4415,
+          1.3815
+        ]
+      }
+    },
+    "COLLISION": {
+      "mesh_objects": 3,
+      "vertices": 24,
+      "faces": 36,
+      "triangles": 36,
+      "materials": [],
+      "material_count": 0,
+      "ngons": 0,
+      "non_manifold_edges": 0,
+      "negative_volume_objects": [],
+      "non_unit_scale_objects": [],
+      "bounds": {
+        "min": [
+          -0.51,
+          -1.07,
+          0.13
+        ],
+        "max": [
+          0.51,
+          0.95,
+          0.65
+        ],
+        "dimensions_xyz_m": [
+          1.02,
+          2.02,
+          0.52
+        ]
+      }
+    }
+  },
+  "gates": {
+    "LOD0": {
+      "triangle_budget": true,
+      "material_budget": true,
+      "no_ngons": true,
+      "manifold": true,
+      "outward_normals": true,
+      "clean_scale": true
+    },
+    "LOD1": {
+      "triangle_budget": true,
+      "material_budget": true,
+      "no_ngons": true,
+      "manifold": true,
+      "outward_normals": true,
+      "clean_scale": true
+    },
+    "LOD2": {
+      "triangle_budget": true,
+      "material_budget": true,
+      "no_ngons": true,
+      "manifold": true,
+      "outward_normals": true,
+      "clean_scale": true
+    },
+    "COLLISION": {
+      "triangle_budget": true,
+      "no_ngons": true,
+      "manifold": true
+    }
+  },
+  "wheel_pivots": {
+    "LOD0_WHEEL_L_F_PIVOT": {
+      "location_m": [
+        -0.67,
+        -0.735,
+        0.28
+      ],
+      "children": 83,
+      "axle_axis": "X"
+    },
+    "LOD0_WHEEL_L_R_PIVOT": {
+      "location_m": [
+        -0.68,
+        0.735,
+        0.31
+      ],
+      "children": 83,
+      "axle_axis": "X"
+    },
+    "LOD0_WHEEL_R_F_PIVOT": {
+      "location_m": [
+        0.67,
+        -0.735,
+        0.28
+      ],
+      "children": 83,
+      "axle_axis": "X"
+    },
+    "LOD0_WHEEL_R_R_PIVOT": {
+      "location_m": [
+        0.68,
+        0.735,
+        0.31
+      ],
+      "children": 83,
+      "axle_axis": "X"
+    },
+    "LOD1_WHEEL_L_F_PIVOT": {
+      "location_m": [
+        -0.67,
+        -0.735,
+        0.28
+      ],
+      "children": 53,
+      "axle_axis": "X"
+    },
+    "LOD1_WHEEL_L_R_PIVOT": {
+      "location_m": [
+        -0.68,
+        0.735,
+        0.31
+      ],
+      "children": 53,
+      "axle_axis": "X"
+    },
+    "LOD1_WHEEL_R_F_PIVOT": {
+      "location_m": [
+        0.67,
+        -0.735,
+        0.28
+      ],
+      "children": 53,
+      "axle_axis": "X"
+    },
+    "LOD1_WHEEL_R_R_PIVOT": {
+      "location_m": [
+        0.68,
+        0.735,
+        0.31
+      ],
+      "children": 53,
+      "axle_axis": "X"
+    },
+    "LOD2_WHEEL_L_F_PIVOT": {
+      "location_m": [
+        -0.67,
+        -0.735,
+        0.28
+      ],
+      "children": 22,
+      "axle_axis": "X"
+    },
+    "LOD2_WHEEL_L_R_PIVOT": {
+      "location_m": [
+        -0.68,
+        0.735,
+        0.31
+      ],
+      "children": 22,
+      "axle_axis": "X"
+    },
+    "LOD2_WHEEL_R_F_PIVOT": {
+      "location_m": [
+        0.67,
+        -0.735,
+        0.28
+      ],
+      "children": 22,
+      "axle_axis": "X"
+    },
+    "LOD2_WHEEL_R_R_PIVOT": {
+      "location_m": [
+        0.68,
+        0.735,
+        0.31
+      ],
+      "children": 22,
+      "axle_axis": "X"
+    }
+  },
+  "file_size_bytes": 802691,
+  "all_structural_gates_pass": true
+}
