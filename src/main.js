@@ -10,7 +10,8 @@ import { CONFIG } from './config.js';
 import { createScene } from './render/SceneManager.js';
 import { GameLoop } from './game/GameLoop.js';
 import { setState, getState, STATES, onStateChange } from './game/GameState.js';
-import { buildTrack, TRACK_PATH, CITY_PATH } from './track/TrackBuilder.js';
+import { buildTrack } from './track/TrackBuilder.js';
+import { getTrack, resolveTrackId } from './track/tracks.js';
 import { Environment } from './track/Environment.js';
 import { PostFX } from './render/PostFX.js';
 import { AudioManager } from './audio/AudioManager.js';
@@ -45,13 +46,16 @@ const TEST = new URLSearchParams(location.search).has('test'); // fast no-postfx
 let startRacePending = false;
 let deferredKartDisposals = [];
 // Track select: the menu's TRACKS screen publishes window.__sk3dTrack
-// before reloading with ?track=2, so the persisted choice wins on boot and
+// before reloading with ?track=<id>, so the persisted choice wins on boot and
 // the query param covers the very first load (defaults to the meadow circuit).
-let savedTrackId = 0;
-try { savedTrackId = Number(localStorage.getItem('sk3d.track')); } catch { /* private mode */ }
-const TRACK_ID =
-  Number(window.__sk3dTrack) === 2 || savedTrackId === 2 ||
-  Number(new URLSearchParams(location.search).get('track')) === 2 ? 2 : 1;
+// Everything per-track (layout, laps, pads, ramps, look) lives in tracks.js.
+const TRACK = getTrack(resolveTrackId());
+// Night/neon world (Neon City, Volcano Night) vs the sunny day world.
+const NIGHT = TRACK.theme === 'neon';
+const PALETTE = TRACK.palette || {};
+// Per-track race settings, applied before any system reads CONFIG.
+CONFIG.game.totalLaps = TRACK.laps ?? CONFIG.game.totalLaps;
+CONFIG.track.turboPadTs = TRACK.turboPadTs ?? CONFIG.track.turboPadTs;
 bootOverlay.setStage('reading controls', 0.10);
 
 // Difficulty/accessibility (audit r3): the CC selector scales the physics
@@ -61,9 +65,10 @@ const BASE_MAX_SPEED = CONFIG.physics.maxSpeed;
 const BASE_BOOST_SPEED = CONFIG.physics.boostSpeed;
 
 const env = new Environment();
-env.trackId = TRACK_ID; // theme hook: 1 = sunny meadow, 2 = neon city
+env.trackId = NIGHT ? 2 : 1; // theme hook: 1 = sunny meadow world, 2 = neon city world
+env.palette = PALETTE; // per-track sky/fog/light/ground overrides
 bootOverlay.setStage('laying the circuit', 0.22);
-const track = buildTrack(scene, TRACK_ID === 2 ? CITY_PATH : TRACK_PATH);
+const track = buildTrack(scene, TRACK.points, { theme: TRACK.theme, palette: PALETTE, rampTs: TRACK.rampTs });
   // MK8 turbo strips breathe (Feco QA 2026-08-12): additive glow overlay pulse.
   const turboGlowMat = (track.turboPads && track.turboPads.glowMat) || null;
 env.buildEnvironment(scene, track); // track passed so props avoid the road
@@ -86,7 +91,13 @@ function buildSkyEnv(renderer) {
   skyCanvas.height = 256;
   const g = skyCanvas.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 256);
-  if (TRACK_ID === 2) {
+  if (PALETTE.ibl) {
+    // Per-track IBL gradient (top → mid → horizon → ground) so chrome and
+    // clearcoat reflect the track's own sky.
+    [0, 0.55, 0.78, 1].forEach((stop, i) => grad.addColorStop(stop, PALETTE.ibl[i]));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 512, 256);
+  } else if (NIGHT) {
     // NEON CITY IBL: deep purple night sky so clearcoat/chrome reflect the
     // city, not the meadow day (vision critic: karts showed no neon).
     grad.addColorStop(0, '#141030');
@@ -119,7 +130,7 @@ function buildSkyEnv(renderer) {
     g.fillStyle = grad;
     g.fillRect(0, 0, 512, 256);
   }
-  if (TRACK_ID === 2) {
+  if (NIGHT) {
     // NEON CITY: a MOON disc (warm white, small) — the daylight sun specular
     // on clearcoat under moonlight was a glaring day cue (audit MED).
     g.fillStyle = '#e8ecf8';
@@ -178,7 +189,7 @@ if (CONFIG.render.bloomStrength <= 0) postfx.enabled = false;
 // MK8: cores frias fiéis ao render, sem grade dourado. Os uniforms vivem em
 // pass.uniforms[...] do ShaderPass APÓS build (MaterialPass), mas o acesso
 // seguro é via pass.material.uniforms.
-if (TRACK_ID === 2) {
+if (NIGHT) {
   for (const pass of postfx.composer.passes) {
     const u = pass.uniforms || (pass.material && pass.material.uniforms);
     if (u && u.warmth) {
@@ -917,7 +928,7 @@ function startRaceInit() {
       position: r.position,
       kart: r.kart,
       totalTime: r.kart?.totalTime,
-    })), TRACK_ID === 2 ? 'Neon City' : 'Meadow Circuit');
+    })), TRACK.name);
     // Celebration burst as the player crosses the line (art-bible: reward juice).
     if (playerKart && playerKart.state) {
       const p = playerKart.state.position.clone();
@@ -958,7 +969,7 @@ function startRaceInit() {
   hud.show();
   hud.reset();
   if (isTouchMode()) touch.show();
-  audio.startMusic(TRACK_ID === 2 ? 'Neon Nights' : undefined);
+  audio.startMusic(TRACK.music);
   countdownT = 0;
   countdownIndex = -1;
   setState(STATES.COUNTDOWN);
@@ -1107,7 +1118,7 @@ function updateCamera(dt, t) {
       // Keep only a restrained sway and the same track-specific distance used
       // by normal gameplay so video QA exercises a truthful player view.
       const sway = Math.sin(t * 0.13) * 0.55;
-      const demoBackDistance = CONFIG.camera.followDistance + (TRACK_ID === 2 ? (CONFIG.camera.neonFollowExtra || 0) : 0);
+      const demoBackDistance = CONFIG.camera.followDistance + (NIGHT ? (CONFIG.camera.neonFollowExtra || 0) : 0);
       _camDesired.copy(st.position)
         .addScaledVector(_fwd, -demoBackDistance)
         .addScaledVector(_side, sway);
@@ -1146,7 +1157,7 @@ function updateCamera(dt, t) {
   // bloqueou pista). REVERTIDO ao baseline exato — 7/10 era o teto mobile.
   const _mobile = isTouchMode(); // mobile/touch → chase mais aberta
   const dist =
-    (CONFIG.camera.followDistance + (TRACK_ID === 2 ? (CONFIG.camera.neonFollowExtra || 0) : 0)) *
+    (CONFIG.camera.followDistance + (NIGHT ? (CONFIG.camera.neonFollowExtra || 0) : 0)) *
     (1 + speed01 * CAM_SPEED_PULLBACK) +
     camBoostKick * CAM_BOOST_KICK;
 
@@ -1208,7 +1219,7 @@ loop.start((dt, t) => {
 
   // Mobile Neon boost: reduce only the turbo-pad glow envelope so the
   // emissive strip does not wash out lane markings/kart silhouettes at DPR2/3.
-  const turboGlowScale = TRACK_ID === 2 && isTouchMode() ? 0.58 : 1;
+  const turboGlowScale = NIGHT && isTouchMode() ? 0.58 : 1;
   if (!terminalPresentation && turboGlowMat) {
     turboGlowMat.opacity = (0.06 + 0.08 * (0.5 + 0.5 * Math.sin(t * 2.6))) * turboGlowScale;
   }

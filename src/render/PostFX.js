@@ -19,6 +19,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { VignetteShader } from 'three/examples/jsm/shaders/VignetteShader.js';
 import { CONFIG } from '../config.js';
+import { getTrack, resolveTrackId } from '../track/tracks.js';
 
 const ColorGradeShader = {
   name: 'ColorGradeShader',
@@ -173,14 +174,10 @@ export class PostFX {
     } catch { /* readPixels can fail on some drivers — assume OK */ }
   }
 
-  /** Mirrors main.js TRACK_ID resolution: ?track=2 / __sk3dTrack /
-   *  localStorage sk3d.track → neon city (night, no sun flare). */
+  /** Same track resolution as main.js (tracks.js registry): neon-theme
+   *  tracks are night worlds (no sun flare). */
   _isDayTrack() {
-    let saved = 0;
-    try { saved = Number(localStorage.getItem('sk3d.track')); } catch { /* private mode */ }
-    const q = new URLSearchParams(window.location.search);
-    const id = Number(window.__sk3dTrack) === 2 || saved === 2 || Number(q.get('track')) === 2 ? 2 : 1;
-    return id !== 2;
+    return getTrack(resolveTrackId()).theme !== 'neon';
   }
 
   /**

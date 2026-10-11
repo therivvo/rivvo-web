@@ -20,7 +20,7 @@
  * window.__sk3dTrack so main.js can read them at race start.
  */
 import { CONFIG } from '../config.js';
-import { TRACK_PATH, CITY_PATH } from '../track/TrackBuilder.js';
+import { TRACKS, isTrackId } from '../track/tracks.js';
 import './ui.css';
 
 /** [action, keyboard, touch] rows for the "How to Play" table. */
@@ -41,14 +41,7 @@ function toHex(value) {
   return `#${value.toString(16).padStart(6, '0')}`;
 }
 
-/**
- * Track catalog. ids match the ?track= query param main.js uses; `points`
- * are the control-point loops exported by TrackBuilder (do NOT edit it).
- */
-const TRACKS = [
-  { id: 1, name: 'Meadow Circuit', icon: '🌇', desc: 'Rolling sunny hills, sweeping bends and two launch ramps.', points: TRACK_PATH },
-  { id: 2, name: 'Neon City', icon: '🌆', desc: 'Tight urban loop — long straights and hairpins under the neon.', points: CITY_PATH },
-];
+// Track catalog: src/track/tracks.js (ids match the ?track= query param).
 
 /**
  * Uniform Catmull-Rom 2D sampling over a closed loop of control points —
@@ -291,8 +284,9 @@ export class Menu {
     this.muted = false;
     this.selectedColor = CONFIG.kart.playerColors[0];
     this.selectedChar = 0; // driver index into CONFIG.kart.characters
-    // Track id matches the ?track= query param (2 = Neon City).
-    this.trackId = new URLSearchParams(location.search).get('track') === '2' ? 2 : 1;
+    // Track id matches the ?track= query param (see tracks.js for ids).
+    const qTrack = Number(new URLSearchParams(location.search).get('track'));
+    this.trackId = isTrackId(qTrack) ? qTrack : 1;
     // Difficulty/accessibility state (audit r3): restored from localStorage.
     this.cc = CONFIG.cc.default;
     this.autoAccel = CONFIG.assist.autoAccelerate;
@@ -388,7 +382,7 @@ export class Menu {
         <button type="button" class="sk3d-track-card${sel ? ' is-selected' : ''}" data-track="${t.id}" role="radio" aria-checked="${sel}" aria-label="Select ${t.name}">
           <canvas class="sk3d-track-canvas" width="600" height="380" aria-hidden="true"></canvas>
           <span class="sk3d-track-name">${t.icon} ${t.name}${sel ? ' <em class="sk3d-picked-badge">PICKED</em>' : ''}</span>
-          <span class="sk3d-track-desc">${t.desc}</span>
+          <span class="sk3d-track-desc">${t.desc} · ${t.laps} laps</span>
           <span class="sk3d-track-num">${i + 1}/${TRACKS.length}</span>
         </button>`;
       })
@@ -630,7 +624,7 @@ export class Menu {
       if (localStorage.getItem('sk3d.autoAccel') === '1') this.autoAccel = true;
       if (localStorage.getItem('sk3d.steerAssist') === '1') this.steerAssist = true;
       const savedTrack = Number(localStorage.getItem('sk3d.track'));
-      if (savedTrack === 1 || savedTrack === 2) this.trackId = savedTrack;
+      if (isTrackId(savedTrack)) this.trackId = savedTrack;
     } catch { /* private mode */ }
     for (const b of this.ccBtns) {
       const sel = Number(b.dataset.cc) === this.cc;
@@ -714,7 +708,7 @@ export class Menu {
     this._centerCard(this.charStrip, card);
   }
 
-  /** Flip to the neighbouring track (wraps the 2-track catalog). */
+  /** Flip to the neighbouring track (wraps around the catalog). */
   stepTrack(dir) {
     const idx = TRACKS.findIndex((t) => t.id === this.trackId);
     const next = TRACKS[(idx + dir + TRACKS.length) % TRACKS.length];
@@ -744,7 +738,7 @@ export class Menu {
     window.__sk3dTrack = this.trackId;
     this.saveSettings();
     setTimeout(() => {
-      location.search = this.trackId === 2 ? '?track=2' : '';
+      location.search = this.trackId === 1 ? '' : `?track=${this.trackId}`;
     }, 350);
   }
 

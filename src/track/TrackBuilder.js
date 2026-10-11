@@ -447,7 +447,7 @@ function buildEdgeShadowLine(path, length, neon = false) {
   return g;
 }
 
-function buildTerrain(path, cityMode = false) {
+function buildTerrain(path, cityMode = false, palette = null) {
   const size = 460;
   const seg = 72;
   const geo = new THREE.PlaneGeometry(size, size, seg, seg);
@@ -525,13 +525,15 @@ function buildTerrain(path, cityMode = false) {
     // glow liam como banda OLIVA no chão distante além do alcance do fog.
     const mat = toonMaterial(cityMode ? 0x2a2d38 : 0xffffff, cityMode ? { emissive: 0x0d1120, emissiveIntensity: 0.22 } : {});
   if (!cityMode) {
-    mat.map = grassTexture();
-    mat.color.set(0xffffff);
+    // palette.groundFlat (sand/snow tracks): drop the green grass map and let
+    // the palette colour + mow-stripe vertex tint carry the ground.
+    mat.map = palette?.groundFlat ? null : grassTexture();
+    mat.color.set(palette?.ground ?? 0xffffff);
     mat.vertexColors = true; // mow stripes (audit r4)
   } else {
     // Urban concrete (vision critic: flat black void — needs pavement detail).
     mat.map = concreteTexture();
-    mat.color.set(0xffffff);
+    mat.color.set(palette?.ground ?? 0xffffff);
   }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
@@ -2157,13 +2159,14 @@ function buildRoadSponsorDecals(path) {
   return group;
 }
 
-export function buildTrack(scene, trackPath = TRACK_PATH) {
+export function buildTrack(scene, trackPath = TRACK_PATH, opts = {}) {
   const group = new THREE.Group();
 
-  // NEON CITY (track 2, ?track=2) restyles the road dark, the kerbs neon and
-  // the rails metallic. Visual-only: roadWidth, ramps and all placement
-  // logic stay identical, so the kart physics is untouched.
-  const isCity = trackPath === CITY_PATH;
+  // NEON CITY theme (opts.theme 'neon': Neon City, Volcano Night) restyles the
+  // road dark, the kerbs neon and the rails metallic. Visual-only: roadWidth,
+  // ramps and all placement logic stay identical, so the kart physics is
+  // untouched. Without opts, the CITY_PATH identity check keeps old callers.
+  const isCity = opts.theme ? opts.theme === 'neon' : trackPath === CITY_PATH;
 
   // Closed curve with elevation.
   const pts = trackPath.map((v) => v.clone());
@@ -2174,8 +2177,8 @@ export function buildTrack(scene, trackPath = TRACK_PATH) {
   const startPos = path.getPointAt(startT);
   const startDir = path.getTangentAt(startT).normalize();
 
-  const cityMode = trackPath === CITY_PATH;
-  const terrain = buildTerrain(path, cityMode);
+  const cityMode = isCity;
+  const terrain = buildTerrain(path, cityMode, opts.palette || null);
   group.add(terrain);
 
   // Dirt shoulders either side of the asphalt (softens the road→grass edge).
@@ -2318,9 +2321,12 @@ export function buildTrack(scene, trackPath = TRACK_PATH) {
   // ~40m across the rail. New ts sit mid-straights (0.13 = top straight,
   // 0.84 = bottom straight) AND every candidate is curvature-checked
   // (skipped unless the local radius is straight enough).
+  // Registry tracks pass opts.rampTs, hand-placed on straights of the recipe
+  // (the 3D tangent check below also counts elevation change, so it rejects
+  // straights that climb) — those are trusted as-is.
   const RAMP_TS = [0.20, 0.57]; // top straight + mid straight (curv ~0)
-  const rampT = [];
-  for (const rt of RAMP_TS) {
+  const rampT = opts.rampTs ? opts.rampTs.slice() : [];
+  for (const rt of opts.rampTs ? [] : RAMP_TS) {
     const ta = path.getTangentAt(Math.max(0.001, rt - 0.005));
     const tb = path.getTangentAt(Math.min(0.999, rt + 0.005));
     const curv = ta.angleTo(tb) / 0.01; // rad per meter

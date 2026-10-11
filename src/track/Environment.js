@@ -508,8 +508,12 @@ export class Environment {
     // trackId 2 (NEON CITY) swaps the sunny meadow for an urban night theme:
     // night fog color matches the sky horizon so the dome blends seamlessly.
     const night = this.trackId === 2;
+    // Per-track colour overrides from the registry (src/track/tracks.js);
+    // every field is optional and falls back to the theme's own colour.
+    const pal = this.palette || {};
+    const dayHaze = pal.fog ?? 0xbfe6ff;
     // AUDIT: night haze carries a purple tint so distance reads neon-lit, not void-black
-    scene.fog = new THREE.Fog(night ? 0x141034 : 0xbfe6ff, night ? 120 : 70, night ? 420 : 430);
+    scene.fog = new THREE.Fog(pal.fog ?? (night ? 0x141034 : 0xbfe6ff), night ? 120 : 70, night ? 420 : 430);
 
     // Sky dome — PREMIUM PASS (2026-08-21): ShaderMaterial procedural (cookbook
     // gradient-sky recipe) substitui a textura canvas. Gradiente contínuo sem
@@ -520,10 +524,10 @@ export class Environment {
     const keyPos = night ? [90, 115, -72] : [70, 90, 40];
     this.sunDir = new THREE.Vector3(...keyPos).normalize();
     const skyUniforms = {
-      uTop:      { value: new THREE.Color(night ? 0x241a4e : 0x2e8fd8) },
-      uMid:      { value: new THREE.Color(night ? 0x2a2a5a : 0x7cc3f0) },
-      uHorizon:  { value: new THREE.Color(night ? 0x141034 : 0xd8f0fc) }, // AUDIT R21: horizonte noturno azul-roxo profundo — o tom anterior (0x251a3a) + fog amarelado das luzes lia como banda OLIVA no horizonte central
-      uSunColor: { value: new THREE.Color(night ? 0xe8ecf8 : 0xfff2cc) },
+      uTop:      { value: new THREE.Color(pal.skyTop ?? (night ? 0x241a4e : 0x2e8fd8)) },
+      uMid:      { value: new THREE.Color(pal.skyMid ?? (night ? 0x2a2a5a : 0x7cc3f0)) },
+      uHorizon:  { value: new THREE.Color(pal.skyHorizon ?? (night ? 0x141034 : 0xd8f0fc)) }, // AUDIT R21: horizonte noturno azul-roxo profundo — o tom anterior (0x251a3a) + fog amarelado das luzes lia como banda OLIVA no horizonte central
+      uSunColor: { value: new THREE.Color(pal.sun ?? (night ? 0xe8ecf8 : 0xfff2cc)) },
       uSunDir:   { value: this.sunDir.clone() },
       uNight:    { value: night ? 1 : 0 },
     };
@@ -587,10 +591,10 @@ export class Environment {
     // superfície roxa clara (fog:false, depthWrite:false) sobre a qual o
     // bloom âmbar pintava a "COLINA VERDE-OLIVA" do horizonte. Sem postfx
     // (?nobl) ela sumia; com anel removido à noite, some também.
-    if (!night) this.buildHazeRing(scene, 0xbfe6ff, 185, 30);
+    if (!night) this.buildHazeRing(scene, dayHaze, 185, 30);
     // AUDIT R12 (2ª camada de profundidade — Meadow): névoa BAIXA na base
     // das colinas (a camada R146/y6.5 é alta; sem a baixa a base lê recorte).
-    if (!night) this.buildGroundHaze(scene, 0xbfe6ff, 100, 2.0, 38, 4.2, 0.5);
+    if (!night) this.buildGroundHaze(scene, dayHaze, 100, 2.0, 38, 4.2, 0.5);
 
     // --- lights (AAA rig: key + fill + sky/ground hemi + rim) --------------
     // NEON CITY swaps the warm sunny rig for dim cool moonlight (the moon
@@ -598,7 +602,7 @@ export class Environment {
     // AUDIT r4: lit faces got ~2.8 irradiance vs ~1.55 in shadow — an ACES
     // contrast ratio under 2:1 = "flat, washed out". The shadow sun is now
     // the SOLE key; hemi/fill cut hard so shadow sides stay shaded.
-    const hemi = new THREE.HemisphereLight(night ? 0x40509a : 0xd8e8ff, night ? 0x141430 : 0x7bca7f, night ? 0.45 : 0.22); // AUDIT R16a: 0.35→0.22 — sombras mais profundas (MK8 contraste)
+    const hemi = new THREE.HemisphereLight(pal.hemiSky ?? (night ? 0x40509a : 0xd8e8ff), pal.hemiGround ?? (night ? 0x141430 : 0x7bca7f), night ? 0.45 : 0.22); // AUDIT R16a: 0.35→0.22 — sombras mais profundas (MK8 contraste)
     scene.add(hemi);
 
     // KEY: primary illumination — warm day sun, or cool moonlit blue at night.
@@ -676,7 +680,7 @@ export class Environment {
     if (night) {
       this.buildNeonCity(scene, track);
       // AUDIT R12 (2ª camada — Neon): névoa baixa na base das torres (50-90m)
-      this.buildGroundHaze(scene, 0x141034, 72, 2.3, 34, 4.6, 0.75); // AUDIT R21f: alpha 0.55→0.75 — o haze mais denso abafa o glow bloom residual no horizonte
+      this.buildGroundHaze(scene, pal.fog ?? 0x141034, 72, 2.3, 34, 4.6, 0.75); // AUDIT R21f: alpha 0.55→0.75 — o haze mais denso abafa o glow bloom residual no horizonte
       this.buildNeonGrid(scene, track); // AUDIT 2026-09-02 AAA: grid neon infinito substitui chão oliva (critic 1/10)
     }
 
@@ -692,7 +696,7 @@ export class Environment {
       this.buildSunGlow(scene);
 
       // --- water -----------------------------------------------------------
-      this.buildWater(scene);
+      if (!pal.noWater) this.buildWater(scene);
 
       // --- palms & props ---------------------------------------------------
       this.buildPalms(scene);
