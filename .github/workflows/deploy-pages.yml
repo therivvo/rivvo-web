@@ -1,0 +1,72 @@
+# ============================================================
+# Deploy Super Kart 3D.js para GitHub Pages
+#
+# - O job "build" SEMPRE roda em todo push para main e valida
+#   que o projeto compila (npm ci + npm run build).
+# - Os steps de Pages (configure/upload/deploy) só rodam quando
+#   o repositório é PÚBLICO — GitHub Pages não é suportado em
+#   repos privados na conta gratuita. Em repo privado o workflow
+#   termina verde após o build (sem deploy).
+#
+# Para ativar o deploy: Settings → Pages → Source: GitHub Actions
+# (exige repositório público ou plano com Pages).
+# ============================================================
+name: Build & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite deploy manual via Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # --- GitHub Pages (só quando o repo é público) ---
+      - name: Setup Pages
+        if: github.repository_visibility == 'public'
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true # cria/habilita o site Pages em modo GitHub Actions
+
+      - name: Upload artifact
+        if: github.repository_visibility == 'public'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.repository_visibility == 'public'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
