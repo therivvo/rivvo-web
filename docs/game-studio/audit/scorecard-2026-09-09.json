@@ -1,0 +1,307 @@
+{
+  "project": "Super Kart 3D.js",
+  "date": "2026-09-09",
+  "status": "release_candidate_sol_validated_with_mobile_qualifiers",
+  "sol_validation": {
+    "status": "passed",
+    "session_id": "20260909_002200_cbc249",
+    "model": "gpt-5.6-sol",
+    "reasoning": "xhigh",
+    "verdict": "release candidate aprovado no ambiente testado",
+    "qualifiers": ["mobile HUD denso durante boost", "elementos próximos às bordas", "DPR alto e frame pacing não cobertos"]
+  },
+  "f7_stress": {
+    "status": "passed_with_targeted_fix",
+    "commit": "e9cb17f",
+    "fix": "Neon mobile turbo pad glow scale 0.58; desktop/Meadow unchanged",
+    "captures": ["Meadow mobile DPR2 finished 936 frames", "Meadow mobile DPR3 finished 942 frames", "Neon mobile DPR2 finished 884 frames", "Neon mobile DPR3 finished 838 frames", "Meadow desktop finished 408 frames", "Neon desktop finished 688 frames"],
+    "renderer": "RADV PHOENIX",
+    "page_errors": 0,
+    "audio": "9/9 PASS"
+  },
+  "f7_sol_review": {
+    "status": "passed",
+    "session_id": "20260909_005524_89196b",
+    "model": "gpt-5.6-sol",
+    "reasoning": "xhigh",
+    "verdict": "patch e9cb17f aprovado",
+    "risks": ["DPR3 canvas 780x1688 por cap", "FPS/frame pacing sem medição"]
+  },
+  "f8_frame_pacing": {
+    "status": "measured_no_product_change",
+    "commit": "b787d7e",
+    "renderer": "RADV PHOENIX",
+    "dpr1_p95_frame_ms": {"meadow_desktop": 13.1, "meadow_mobile": 11.2, "neon_desktop": 11.0, "neon_mobile": 9.6},
+    "dpr3_p95_frame_ms": {"meadow_desktop": 30.4, "meadow_mobile": 12.0, "neon_desktop": 15.3, "neon_mobile": 11.3},
+    "dpr3_p50_frame_ms": {"meadow_desktop": 14.2, "meadow_mobile": 10.3, "neon_desktop": 12.1, "neon_mobile": 8.7},
+    "effective_pixel_ratio": 2,
+    "drawing_buffer": {"desktop": "2560x1440", "mobile": "780x1688"},
+    "page_errors": 0,
+    "decision": "keep pixelRatio cap 2; device DPR3 is explicitly measured as effective DPR2; do not raise to 3 without stronger evidence"
+  },
+  "f9_final_audit": {
+    "status": "go_for_release",
+    "session_id": "20260909_042024_5de8b2",
+    "model": "gpt-5.6-sol",
+    "reasoning": "xhigh",
+    "captures": {"meadow_desktop": 888, "meadow_mobile": 931, "neon_desktop": 694, "neon_mobile": 819},
+    "all_finished": true,
+    "page_errors": 0,
+    "vision": "4/4 pass",
+    "audio": "9/9 PASS",
+    "residual_risk": "Meadow desktop frame-time p95 30.4 ms; hardware/browser coverage limited",
+    "product_change": "none recommended"
+  },
+  "f10_breakdown": {
+    "status": "diagnosed_no_product_change",
+    "meadow_ai_meshes": 1285,
+    "meadow_ai_geometry_triangles": 199650,
+    "meadow_render_triangles_median": 1009097,
+    "meadow_20s_p95_ms": 12.9,
+    "meadow_20s_max_ms": 30.2,
+    "neon_desktop_20s_p95_ms": 10.7,
+    "decision": "no LOD/instancing patch without paired visual/gameplay evidence"
+  },
+  "f10_sol_review": {
+    "status": "passed",
+    "session_id": "20260909_044944_2c5794",
+    "model": "gpt-5.6-sol",
+    "reasoning": "xhigh",
+    "verdict": "release GO; no safe LOD/instancing patch"
+  },
+  "f11_final_human_audit": {
+    "status": "pass_with_ux_plan",
+    "session_id": "20260909_060136_d785de",
+    "model": "gpt-5.6-sol",
+    "reasoning": "xhigh",
+    "captures": {"meadow_desktop": 887, "meadow_mobile": 937, "neon_desktop": 675, "neon_mobile": 850},
+    "all_finished": true,
+    "page_errors": 0,
+    "vision": "4/4 pass functional; UX gaps confirmed",
+    "audio": "9/9 PASS",
+    "plan": "docs/F11-IMPROVEMENT-PLAN.md",
+    "phases": ["F12 player identity/HUD", "F13 mobile input/safe-area", "F14 route anticipation", "F15 feedback ownership", "F16 results/focus", "F17 grounding/composition"]
+  },
+  "f12_player_identity": {
+    "status": "pass",
+    "commits": ["d63afa3", "b74ec38", "fcc7c1d"],
+    "captures": {"meadow_desktop": 884, "meadow_mobile": 931, "neon_desktop": 661, "neon_mobile": 880},
+    "all_finished": true,
+    "page_errors": 0,
+    "vision_native": "4/4 pass",
+    "audio": "9/9 PASS",
+    "sol_session": "20260909_104105_66c01e",
+    "sol_model": "gpt-5.6-sol",
+    "sol_reasoning": "xhigh",
+    "next_phase": "F13 mobile input and safe-area stress"
+  },
+  "f13_mobile_input": {
+    "status": "pass",
+    "commit": "c8a126b",
+    "tracks": ["meadow", "neon"],
+    "videos": {"meadow_mobile": 599, "neon_mobile": 599},
+    "all_finished": true,
+    "page_errors": 0,
+    "probe": "blur/cancel reset; pause cancel safe; targets 64px; safe margins measured",
+    "vision": "temporal mobile pass",
+    "audio": "9/9 PASS",
+    "sol_session": "20260909_105618_8f080c",
+    "sol_model": "gpt-5.6-sol",
+    "sol_reasoning": "xhigh",
+    "next_phase": "F14 route anticipation and landmarks"
+  },
+  "f14_route_cue": {
+    "status": "pass",
+    "commit": "70dccb8",
+    "captures": {"meadow_desktop": 896, "meadow_mobile": 919, "neon_desktop": 1117, "neon_mobile": 846},
+    "all_finished": true,
+    "page_errors": 0,
+    "runtime": {"meadow": "TURN LEFT 14m", "neon": "TURN RIGHT 21m"},
+    "vision": "4/4 temporal pass",
+    "audio": "9/9 PASS",
+    "sol_session": "20260909_111817_fd3883",
+    "sol_model": "gpt-5.6-sol",
+    "sol_reasoning": "xhigh",
+    "next_phase": "F15 sector landmarks and feedback ownership"
+  },
+  "f15_landmarks_feedback": {
+    "status": "no_change",
+    "tracks": ["meadow", "neon"],
+    "landmarks": ["START/FINISH", "directional signs", "turbo pad", "item box", "Mushroom HUD"],
+    "vision": "functional landmarks pass; drift active inconclusive",
+    "sol_session": "20260909_112349_f5e3b4",
+    "sol_model": "gpt-5.6-sol",
+    "sol_reasoning": "xhigh",
+    "risk": "skyline repetition without sector ownership; adding props may clutter/occlude",
+    "next_phase": "F16 drift feedback ownership"
+  },
+  "f16_drift_ownership": {
+    "status": "no_change",
+    "videos": {"meadow_mobile": 599, "neon_mobile": 599, "meadow_desktop": 599, "neon_desktop": 599},
+    "all_finished": true,
+    "page_errors": 0,
+    "vision": "drift state inconclusive under demo/autopilot",
+    "runtime": "drift meter hidden; no reproducible physical drift",
+    "sol_session": "20260909_113529_c9f70a",
+    "sol_model": "gpt-5.6-sol",
+    "sol_reasoning": "xhigh",
+    "next_phase": "F17 manual deterministic drift harness"
+  },
+  "f17_manual_drift_harness": {
+    "status": "pass",
+    "commit": "0a3aeba",
+    "player_ai": false,
+    "videos": {"meadow_mobile": 902, "neon_mobile": 901, "meadow_desktop": 901, "neon_desktop": 901},
+    "page_errors": 0,
+    "ready_max_percent": {"meadow_mobile": 41, "meadow_desktop": 44, "neon_mobile": 88, "neon_desktop": 86},
+    "sol_session": "20260909_115333_9d09d0",
+    "next_phase": "F18 results/focus/restart"
+  },
+  "evidence": {
+    "renderer": "ANGLE (AMD, Vulkan 1.4.318, AMD Radeon 780M Graphics (RADV PHOENIX), radv)",
+    "tracks": ["meadow", "neon"],
+    "platforms": ["desktop", "mobile"],
+    "finished_runs": 4,
+    "page_errors": 0,
+    "ai_seeds_per_track": 20,
+    "ai_lost": 0,
+    "ai_backwards": 0,
+    "ai_crashes": 0,
+    "video_root": "/tmp/sk3d-current-audit"
+  },
+  "scores": {
+    "meadow_desktop": {"track_readability": 8.0, "kart_camera": 7.5, "environment": 7.5, "materials_lighting": 7.5, "vfx": 7.5, "hud_touch": 7.5, "finish": 7.5, "stability": 8.5},
+    "meadow_mobile": {"track_readability": 7.5, "kart_camera": 7.0, "environment": 7.0, "materials_lighting": 7.0, "vfx": 7.0, "hud_touch": 7.0, "finish": 7.0, "stability": 8.5},
+    "neon_desktop": {"track_readability": 8.0, "kart_camera": 7.0, "environment": 7.0, "materials_lighting": 6.5, "vfx": 7.0, "hud_touch": 7.5, "finish": 7.5, "stability": 8.5},
+    "neon_mobile": {"track_readability": 7.5, "kart_camera": 6.5, "environment": 6.5, "materials_lighting": 6.0, "vfx": 6.5, "hud_touch": 7.0, "finish": 7.0, "stability": 8.5}
+  },
+  "priority_gaps": [
+    {"priority": "P1", "owner": "camera/HUD", "gap": "kart protagonism and portrait competition"},
+    {"priority": "P1", "owner": "Environment/MaterialLibrary", "gap": "Neon grounding and flat/repetitive skyline"},
+    {"priority": "P1", "owner": "HUD", "gap": "small secondary text and weak player-row emphasis"},
+    {"priority": "P2", "owner": "Environment props", "gap": "Meadow straight-line rhythm and zone landmarks"},
+    {"priority": "P2", "owner": "PostFX/particles", "gap": "emissive/VFX competition with kart silhouette"}
+  ],
+  "f18_results_focus": {
+    "status": "pass",
+    "commits": ["93bf042", "501b7fe", "a80245a"],
+    "matrix": ["meadow_mobile", "neon_mobile", "meadow_desktop", "neon_desktop"],
+    "focus": "Race Again -> Tab Menu -> Shift+Tab Race Again -> Enter countdown",
+    "menu_state": "menu",
+    "page_errors": 0,
+    "sol_session": "20260909_121338_625cdf",
+    "next_phase": "F19 grounding"
+  },
+  "f19_grounding": {
+    "status": "no_change",
+    "probe": {"meadow_max_m": 0.303, "meadow_p95_m": 0.233, "neon_max_m": 1.84, "neon_p95_m": 0.61},
+    "vision": "4/4 no floating/embedded/shadow detached/camera clipping",
+    "sol_session": "20260909_122740_ffd5c9",
+    "next": "final audit"
+  },
+
+  "final_audit": {
+    "verdict": "GO",
+    "sol_session": "20260909_123402_26ce84",
+    "model": "gpt-5.6-sol",
+    "reasoning": "xhigh",
+    "videos_finished": 4,
+    "page_errors": 0,
+    "ai_lost": 0,
+    "ai_backwards": 0,
+    "ai_crashes": 0,
+    "audio_failed": 0,
+    "frame_pacing_ms": {"meadow_desktop": {"p95": 14.1, "max": 31.4}, "meadow_mobile": {"p95": 11.4, "max": 14.9}, "neon_desktop": {"p95": 12.5, "max": 42.1}, "neon_mobile": {"p95": 10.0, "max": 27.3}},
+    "risks": ["isolated Neon desktop 42.1ms spike", "F19 hairpin/progress probe false-positive hypothesis", "RADV PHOENIX coverage concentration"]
+  },
+  "f20_route_cue_regression": {
+    "status": "pass",
+    "commits": ["58678dc", "29edca8"],
+    "videos_finished": {"meadow_desktop": 899, "meadow_mobile": 1002, "neon_desktop": 1169, "neon_mobile": 1508},
+    "page_errors": 0,
+    "vision": "zero stale route cue in all results samples",
+    "sol_session": "20260909_185139_3646fb"
+  },
+  "f21_adversarial_audit": {
+    "status": "pass",
+    "commits": ["f2ed57c", "b9dda75"],
+    "freeze_probe": "4/4 delta elapsed/player/camera = 0 over 2s",
+    "lap_probe": "LAP 1/3 stable boot/countdown/GO",
+    "videos_finished": {"meadow_desktop": 916, "meadow_mobile": 1007, "neon_desktop": 1171, "neon_mobile": 1508},
+    "page_errors": 0,
+    "vision": "4/4 pass",
+    "ai_lost": 0,
+    "ai_backwards": 0,
+    "ai_crashes": 0,
+    "audio_failed": 0,
+    "sol_session": "20260909_212400_db0cae"
+  },
+  "f22_adversarial_audit": {
+    "status": "pass",
+    "videos_finished": {"meadow_mobile": 1001, "neon_mobile": 1510, "meadow_desktop": 916, "neon_desktop": 1108},
+    "restart_harness": "4/4 race-again and menu transitions pass",
+    "page_errors": 0,
+    "ai_lost": 0,
+    "ai_backwards": 0,
+    "ai_crashes": 0,
+    "audio_failed": 0,
+    "sol_session": "20260909_224635_6b636f"
+  },
+  "f23_lifecycle_audit": {
+    "status": "pass",
+    "commit": "8faa5f8",
+    "assertion": "4/4 Race Again and Menu transitions; menu phase idle; HUD root hidden",
+    "videos_finished": {"meadow_mobile": 1002, "neon_mobile": 1506, "meadow_desktop": 927, "neon_desktop": 1119},
+    "page_errors": 0,
+    "ai_lost": 0,
+    "ai_backwards": 0,
+    "ai_crashes": 0,
+    "audio_failed": 0,
+    "sol_session": "20260909_232003_cc0c89"
+  },
+  "f24_mobile_identity_audit": {
+    "status": "no_change",
+    "metrics": {"lap_font_mobile_px": 15.2, "lap_font_desktop_px": 16.8, "touch_target_px": "64x64", "player_aria_label": true},
+    "videos_finished": {"meadow_mobile": 996, "neon_mobile": 1510, "meadow_desktop": 932, "neon_desktop": 1099},
+    "page_errors": 0,
+    "vision": "4/4 no functional regression; typography/identity observability backlog",
+    "ai_lost": 0,
+    "ai_backwards": 0,
+    "ai_crashes": 0,
+    "audio_failed": 0,
+    "sol_session": "20260909_234955_9c3d53"
+  },
+  "blender_asset_backlog": {
+    "status": "documented",
+    "source": "gpt-5.6-sol",
+    "sol_session": "20260910_000044_71e2ac",
+    "priorities": {
+      "P0": ["hero_kart", "ramps_boost_pads", "neon_skyline"],
+      "P1": ["signs_chevrons", "meadow_landmarks_foliage"],
+      "P2": ["start_finish_gantry", "item_boxes"],
+      "P3": ["guardrails_roadside_props"]
+    },
+    "document": "docs/BLENDER-ASSET-BACKLOG.md",
+    "hud_physics_postfx_excluded": true,
+    "first_asset": "hero_kart"
+  },
+  "blender_asset_backlog_review": {
+    "status": "reviewed",
+    "sol_session": "20260910_002508_48b7e3",
+    "order": ["hero_kart", "ramps_grounding", "neon_skyline", "signs_landmarks", "gantry_item_box", "guardrails"],
+    "vertical_slice": ["hero_kart", "one_ramp_family", "three_neon_tower_silhouettes"],
+    "revised_budgets": {"ramps": "3000/1200/300", "towers": "4000/1200/300", "landmarks": "5000/1500/400", "item_box": "1500/400/100"},
+    "collider_from_visual_mesh": false
+  },
+  "hero_kart_v7": {
+    "status": "approved_for_integration",
+    "sol_art_session": "20260910_004948_020606",
+    "sol_validation_session": "20260910_012628_acf31a",
+    "blender_version": "4.0.2",
+    "mesh_validate": {"pass": true, "nonmanifold": 0, "ngons": 0},
+    "glb_bytes": 583668,
+    "runtime_integrated": false,
+    "document": "docs/BLENDER-HERO-KART-V1.md"
+  },
+  "fps_claim": false
+}
