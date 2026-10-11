@@ -360,7 +360,7 @@ export class KartPhysics {
     // ---- steering ---------------------------------------------------------
     if (s.spinOut) {
       s.heading += kart._spinDir * 8.5 * dt;
-      s.speed = approach(s.speed, 0, 20 * dt);
+      s.speed = approach(s.speed, 0, 0.5 * P.gripLateral * dt); // sliding tyres: ~1 g
       s.drifting = false;
     } else {
       // Bicycle model: the front-wheel angle asks for yaw rate v/L·tan(δ). The

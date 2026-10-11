@@ -111,12 +111,12 @@ export const CONFIG = {
     boxRadius: 0.7, // cube edge/2 — AAA REBUILD: was 1.0 (2m cube dominated
     // every frame, MK8D item boxes are ~1.4m and read as pickups, not props)
     boxBobSpeed: 2.0,
-    pickupRadius: 2.8, // generous — at 43 m/s the kart crosses 2.1m per 0.05s frame
+    pickupRadius: 2.8, // generous — at top speed (33 m/s) a kart crosses 1.7m per 0.05s frame
     // AUDIT (Feco, 2026-08-11): 'a velocidade que ele é arremessado é lenta' —
     // 46 m/s vs a kart at ~42 was a ~4 m/s relative gain: a thrown shell barely
     // outran its owner. MK8 shells are thrown ~1.6-1.8x kart speed; 72 m/s
     // (~1.7x) makes the throw read as a proper shot while still dodgeable.
-    shellSpeed: 84,
+    shellSpeed: 50, // REALISM PASS: 1.5x kart top speed (was 84 vs 42)
     shellHomingTurnRate: 3.2,
     // AUDIT r4: blue shell ARC — the spiny flies high (telegraph) before
     // diving. lift 13 m/s launch, gravity 9.8 brings it down in ~2.6s.
@@ -125,7 +125,7 @@ export const CONFIG = {
     bananaRadius: 0.7,
     starDurationMs: 4000,
     lightningDurationMs: 4500,
-    lightningScale: 0.55,
+    lightningScale: 0.7, // shrink + speed factor (REALISM PASS: was 0.55)
     mushroomBoostMs: 1500,
     // AUDIT r4: hold the item button this long to arm a REAR throw (the
     // MK8D hold-to-throw-back skill — release fires shells/bananas backward).
@@ -134,8 +134,8 @@ export const CONFIG = {
     tripleChance: 1 / 6, // ~1 in 6 item boxes grants 3 queued items (MK8 triple)
     coinCount: 10, // gold coins placed near the road edge
     coinPickupRadius: 2.4,
-    coinSpeedBonus: 0.01, // +1% maxSpeed per coin collected
-    coinSpeedCap: 0.10, // +10% max coin bonus (10 coins)
+    coinSpeedBonus: 0.005, // +0.5% maxSpeed per coin collected
+    coinSpeedCap: 0.05, // +5% max coin bonus (10 coins)
   },
 
   ai: {
