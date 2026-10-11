@@ -146,6 +146,18 @@ function nearestSample(kart, samples) {
   };
 }
 
+/**
+ * Front-wheel lock (rad) at a given speed: wide open at walking pace,
+ * narrowing so full input asks steerOverdrive × the yaw the tyres can give
+ * (tan δ = L·grip·k / v²). Shared with AIController so the AI converts the
+ * yaw rate it wants into exactly the steering input the physics expects.
+ */
+export function steerLockAt(speedAbs, grip) {
+  const P = CONFIG.physics;
+  const gripLock = Math.atan((P.wheelbase * grip * P.steerOverdrive) / Math.max(speedAbs * speedAbs, 1));
+  return Math.min(P.maxSteerAngle, gripLock);
+}
+
 function roadHalfWidth(track, t) {
   const w = typeof track.getRoadWidthAt === 'function'
     ? track.getRoadWidthAt(t)
@@ -374,13 +386,12 @@ export class KartPhysics {
       // only supply gripLateral of sideways acceleration (a = v·ω), so the
       // yaw rate is capped at grip / v. Anything asked beyond that is
       // understeer: the kart runs wide of the request and scrubs speed.
-      const speed01 = Math.min(1, speedAbs / P.maxSpeed);
-      const lock = P.maxSteerAngle + (P.minSteerAngle - P.maxSteerAngle) * speed01;
+      let grip = P.gripLateral * (s.offRoad ? P.gripOffRoad : 1);
+      if (s.drifting) grip *= P.driftGripBonus;
+      const lock = steerLockAt(speedAbs, grip);
       const steerSign = s.speed < 0 ? -1 : 1;
       let yawRate = (speedAbs / P.wheelbase) * Math.tan(input.steer * lock) * steerSign;
       if (kart._airTime > 0.05) yawRate *= P.airControl * 0.4; // reduced control airborne
-      let grip = P.gripLateral * (s.offRoad ? P.gripOffRoad : 1);
-      if (s.drifting) grip *= P.driftGripBonus;
       const maxYaw = grip / Math.max(speedAbs, 1);
       const demand = Math.abs(yawRate);
       kart._understeer = demand > maxYaw ? 1 - maxYaw / demand : 0;

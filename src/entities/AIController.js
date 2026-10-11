@@ -11,8 +11,9 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { headingVector, progressScore, signedAngle, PowerUpType, kartPosition } from './PowerUp.js';
+import { steerLockAt } from './KartPhysics.js';
 
-/** Full steering lock reached at this heading error (radians). */
+/** Low-speed fallback: full steering lock at this heading error (radians). */
 const STEER_FULL_AT = 0.7;
 
 /**
@@ -203,8 +204,17 @@ export class AIController {
     // steer DECREASES heading (turns right). Target right of kart → err > 0
     // → positive steer. (Was -err before the steering-sign fix.)
     // Handling stat scales steering authority (audit F2 difficulty curve).
-    const hGain = 0.85 + (this.stats?.handling || 7) / 10 * 0.3;
-    let steer = THREE.MathUtils.clamp((err / STEER_FULL_AT) * hGain, -1, 1);
+    // Handling stat: ±4% steering precision around an exact pursuit (5→0.96, 9→1.04).
+    const hGain = 1 + ((this.stats?.handling || 7) - 7) * 0.02;
+    // Pure pursuit: the arc through the aim point has curvature 2·sin(err)/d;
+    // the yaw rate that needs (v·κ) divided by the yaw rate full lock gives
+    // (same lock formula as the physics) is the steering input.
+    const v = Math.abs(st.speed ?? 0);
+    const grip = CONFIG.physics.gripLateral * (st.offRoad ? CONFIG.physics.gripOffRoad : 1);
+    const fullLockYaw = (v / CONFIG.physics.wheelbase) * Math.tan(steerLockAt(v, grip));
+    let steer = fullLockYaw > 0.05
+      ? THREE.MathUtils.clamp(((v * 2 * Math.sin(err)) / tl / fullLockYaw) * hGain, -1, 1)
+      : THREE.MathUtils.clamp((err / STEER_FULL_AT) * hGain, -1, 1);
 
     // Hazard avoidance (audit r3: CPUs were free banana/shell fodder — no
     // steering response to hazards on their line). Steer away from any live

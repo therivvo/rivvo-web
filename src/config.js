@@ -48,7 +48,10 @@ export const CONFIG = {
     // √(grip × radius): a 20 m hairpin ≈ 73 km/h, a 50 m sweeper ≈ 115 km/h.
     wheelbase: 1.05, // m
     maxSteerAngle: 0.45, // rad (~26°) front-wheel lock at walking pace
-    minSteerAngle: 0.1, // rad (~6°) lock at top speed
+    // Speed-sensitive lock: at speed, full input asks this much MORE yaw than
+    // the tyres can give — the kart turns at the limit and scrubs a little,
+    // instead of a digital keyboard input slamming deep into understeer.
+    steerOverdrive: 1.15,
     gripLateral: 20.5, // ~2.1 g on dry tarmac with slicks
     gripOffRoad: 0.55, // grip multiplier on grass / sand
     offRoadDrag: 5.5, // extra rolling resistance off the tarmac
